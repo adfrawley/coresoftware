@@ -155,15 +155,51 @@ bool PHG4SiliconTrackerSteppingAction::UserSteppingAction(const G4Step* aStep, b
       }
     }
 
+    G4VPhysicalVolume* volume_post = postPoint->GetTouchableHandle()->GetVolume();
+    if(verbosity > 1)
+      {
+	cout << "volume name " << volume->GetName() 
+	     << " copy no. " << volume->GetCopyNo() 
+	     << " volume_post name " << volume_post->GetName() 
+	     << " volume_post copy no. " <<  volume_post->GetCopyNo()
+	     << endl;
+      }
+
     if (prePoint->GetStepStatus() == fGeomBoundary && postPoint->GetStepStatus() == fGeomBoundary)
     {
-      G4VPhysicalVolume* volume_post = postPoint->GetTouchableHandle()->GetVolume();
+      //G4VPhysicalVolume* volume_post = postPoint->GetTouchableHandle()->GetVolume();
 
       if (volume->GetCopyNo() == volume_post->GetCopyNo())
       {
-        cout << "Overlap detected in volume " << volume->GetName()
-             << "pre and post step point ot same volume for step status fGeomBoundary" << endl;
-        exit(1);
+        if(verbosity > 1) cout << "Overlap detected in volume " << volume->GetName() << endl
+			       << "    -- pre and post step point to the same volume for step status fGeomBoundary" << endl;
+  
+	// we need to replace the values above with the correct strip index values 
+	// the transform of the world coordinates into the sensor frame will work correctly, so we determine the strip indices from the hit position in the sensor frame
+	
+	G4ThreeVector preworldPos = prePoint->GetPosition();
+	G4ThreeVector strip_pos =  touch->GetHistory()->GetTransform(touch->GetHistory()->GetDepth() - 1).TransformPoint(preworldPos);
+	
+	strip_z_index = 0;
+	for (int i=0; i<nstrips_z_sensor; ++i)
+	  {
+	    const double zmin = 2.*strip_z*(double)(i)   - strip_z*(double)nstrips_z_sensor;
+	    const double zmax = 2.*strip_z*(double)(i+1) - strip_z*(double)nstrips_z_sensor;
+	    if (strip_pos.z()/CLHEP::mm>zmin && strip_pos.z()/CLHEP::mm<=zmax)
+	      strip_z_index = i;
+	  }
+	
+	strip_y_index = 0;
+	for (int i=0; i<2*nstrips_phi_cell; ++i)
+	  {
+	    const double ymin = 2.*strip_y*(double)(i)   - 2.*strip_y*(double)nstrips_phi_cell;
+	    const double ymax = 2.*strip_y*(double)(i+1) - 2.*strip_y*(double)nstrips_phi_cell;
+	    if (strip_pos.y()/CLHEP::mm>ymin && strip_pos.y()/CLHEP::mm<=ymax)
+	      {
+		strip_y_index = i;
+		if(verbosity > 1) std::cout << "    -- corrected:  revised strip y position = " << strip_y_index << std::endl;
+	      }
+	  } 
       }
     }
   }
