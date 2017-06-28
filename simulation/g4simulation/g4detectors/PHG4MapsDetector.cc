@@ -270,7 +270,7 @@ void PHG4MapsDetector::SetDisplayProperty( G4AssemblyVolume* av)
   int nDaughters = av->TotalImprintedVolumes();
   for(int i = 0; i < nDaughters; ++i, ++it)
     {
-      //  cout <<"SetDisplayProperty - AV["<<i<<"] = "<<(*it)->GetName()<<endl;
+      cout <<"SetDisplayProperty - AV["<<i<<"] = "<<(*it)->GetName()<<endl;
       G4VPhysicalVolume* pv =(*it);
       
       G4LogicalVolume* worldLogical = pv->GetLogicalVolume();
@@ -290,55 +290,55 @@ void PHG4MapsDetector::SetDisplayProperty( G4LogicalVolume* lv)
   G4VisAttributes* matVis= new G4VisAttributes();
   if (material_name.find("SI") != std::string::npos)
     {
-      PHG4Utils::SetColour(matVis, "G4_Si");
+      matVis->SetColour(G4Colour::Green());
       matVis->SetVisibility(true);
       matVis->SetForceSolid(true);
       if (Verbosity() >= 5)
-      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with G4_Si" << endl;
+      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with green" << endl;
     }
   else if (material_name.find("KAPTON") != std::string::npos)
     {
-      PHG4Utils::SetColour(matVis, "G4_KAPTON");
+      matVis->SetColour(G4Colour::Cyan());
       matVis->SetVisibility(true);
       matVis->SetForceSolid(true);
       if (Verbosity() >= 5)
-      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with G4_KAPTON" << endl;
+      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with cyan" << endl;
     }
   else if (material_name.find("ALUMINUM") != std::string::npos)
     {
-      PHG4Utils::SetColour(matVis, "G4_Al");
+      matVis->SetColour(G4Colour::Red());
       matVis->SetVisibility(true);
       matVis->SetForceSolid(true);
       if (Verbosity() >= 5)
-      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with G4_Al" << endl;
+      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with red" << endl;
     }
   else if (material_name.find("Carbon") != std::string::npos)
     {
-      matVis->SetColour(0.5,0.5,0.5,.25);
+      matVis->SetColour(G4Colour::White());
       matVis->SetVisibility(true);
       matVis->SetForceSolid(true);
       if (Verbosity() >= 5)
-      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with Gray" << endl;
+      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with White" << endl;
     }
   else if (material_name.find("M60J3K") != std::string::npos)
     {
-      matVis->SetColour(0.25,0.25,0.25,.25);
+      matVis->SetColour(G4Colour::Magenta());
       matVis->SetVisibility(true);
       matVis->SetForceSolid(true);
       if (Verbosity() >= 5)
-      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with Gray" << endl;
+      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with magenta" << endl;
     }
   else if (material_name.find("WATER") != std::string::npos)
     {
-      matVis->SetColour(0.0,0.5,0.0,.25);
+      matVis->SetColour(G4Colour::Blue());
       matVis->SetVisibility(true);
       matVis->SetForceSolid(true);
       if (Verbosity() >= 5)
-      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with WATER" << endl;
+      cout << "SetDisplayProperty - LV " << lv->GetName() << " display with blue" << endl;
     }
   else
     {
-      matVis->SetColour(.2,.2,.7,.25);
+      matVis->SetColour(1.0, 0.0, 0.0, 0.2); // Red
       matVis->SetVisibility(true);
       matVis->SetForceSolid(true);
     }
