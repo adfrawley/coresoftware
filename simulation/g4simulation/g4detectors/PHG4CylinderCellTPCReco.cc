@@ -25,6 +25,8 @@
 #include <TProfile2D.h>
 #include <TROOT.h>
 #include <TSystem.h>
+#include <TF1.h>
+#include <TF2.h>
 
 #include <CLHEP/Units/PhysicalConstants.h>
 #include <CLHEP/Units/SystemOfUnits.h>
@@ -257,6 +259,51 @@ int PHG4CylinderCellTPCReco::InitRun(PHCompositeNode *topNode)
     tmin_max.insert(std::make_pair(layer, std::make_pair(tmin_default, tmax_default)));
   }
 
+  // Calculate the distribution of charge at the pad plane from the GEM output
+  //====================================================
+  // here we use sigmaT. We will adjust the charge width when processing events on a hit by hit basis.
+  // This is actually a double gaussian of width sigmaT, but we integrate it over the radial coordinate 
+  // for slices in r-phi
+
+  // make a TF2 to represent the 2D gaussian function describing the charge distribution
+  // limits of integration
+  double xmin = -4.5 * sigmaT;
+  double xmax = 4.5 * sigmaT;
+
+  // sets the step size for evaluating strip integrals
+  int nstrips = 20; // number of r-phi strips in which to integrate the charge distribution
+  double charge_delta_rphi = (xmax-xmin)/(double) (nstrips);
+
+  cout << " nstrips " << nstrips << " xmin " << xmin << " xmax " << xmax << " charge_delta_rphi " << charge_delta_rphi << endl;
+
+  double scale = 2.0*3.14159*sigmaT*sigmaT;
+  TF2 *dg = new TF2("dg","[0]*exp(-x*x/(2*[1] *[1]) - y*y/(2*[1]*[1]))",xmin, xmax, xmin, xmax);
+  dg->SetParameter(0,1.0/scale);
+  dg->SetParameter(1,sigmaT);
+
+  // calculate and store the charge integrated in a narrow rectangular strip along the radial 
+  // direction as a function of offset from the center of the circle.
+
+  for(int i=0;i<nstrips;i++)
+    {
+      // calculate the offset from the center of the charge circle
+      double off_lo = xmin + (double) i * charge_delta_rphi; 
+      double off_hi = off_lo + charge_delta_rphi;
+
+      // calculate the double gauss integral between those limits
+      slice_int[i] = dg->Integral(off_lo, off_hi, xmin, xmax);
+      slice_x[i] = (off_lo + off_hi) / 2.0;
+      slice_x[i] = slice_x[i];
+
+      cout << "i " << i 
+	   << " off_lo " << off_lo
+	   << " off_hi " << off_hi
+	   << " charge_delta_rphi " << charge_delta_rphi 
+	   << " slice_int " << slice_int[i]
+	   << " slice_x " << slice_x[i]
+	   << endl;
+    }
+
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
@@ -313,7 +360,7 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
       exit(1);
     }
     double zstepsize = (sizeiter->second).second;
-    double phistepsize = phistep[*layer];
+    //double phistepsize = phistep[*layer];
     for (hiter = hit_begin_end.first; hiter != hit_begin_end.second; hiter++)
     {
       // checking ADC timing integration window cut
@@ -420,25 +467,25 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
         cell->add_edep(hiter->first, edep);
         cell->add_edep(edep);
         cell->add_shower_edep(hiter->second->get_shower_id(), edep);
-//        if (hiter->second->has_property(PHG4Hit::prop_eion)) cell->add_eion(hiter->second->get_eion());
+	//        if (hiter->second->has_property(PHG4Hit::prop_eion)) cell->add_eion(hiter->second->get_eion());
       }
       else
       {  // TPC
         // converting Edep to Total Number Of Electrons
         float eion = hiter->second->get_eion();
         if (!isfinite(eion))
-        {
-          eion = edep;
-        }
+	  {
+	    eion = edep;
+	  }
         if (eion <= 0)  // no ionization energy - skip to next hit
-        {
-          continue;
-        }
+	  {
+	    continue;
+	  }
         double nelec = gsl_ran_poisson(RandomGenerator, elec_per_gev * eion);
         if (verbosity > 1)
-        {
-          fHElectrons->Fill(nelec);
-        }
+	  {
+	    fHElectrons->Fill(nelec);
+	  }
 
         // The resolution due to pad readout includes the charge spread during GEM multiplication.
         // this now defaults to 400 microns during construction from Tom (see 8/11 email).
@@ -448,7 +495,7 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
         // These are calculated (in cm) in the macro from the shaping RMS times and the gas drift velocity
         sigmaL[0] = fShapingLead;
         sigmaL[1] = fShapingTail;
-        double cloud_sig_rp = sqrt(fDiffusionT * fDiffusionT * (fHalfLength - fabs(hiter->second->get_avg_z())) + sigmaT * sigmaT);
+        double cloud_sig_rp = sqrt(fDiffusionT * fDiffusionT * (fHalfLength - fabs(hiter->second->get_avg_z())) + sigmaT * sigmaT); 
         double cloud_sig_zz[2];
         cloud_sig_zz[0] = sqrt(fDiffusionL * fDiffusionL * (fHalfLength - fabs(hiter->second->get_avg_z())) + sigmaL[0] * sigmaL[0]);
         cloud_sig_zz[1] = sqrt(fDiffusionL * fDiffusionL * (fHalfLength - fabs(hiter->second->get_avg_z())) + sigmaL[1] * sigmaL[1]);
@@ -461,18 +508,20 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
         if (phi < -M_PI) phi += 2 * M_PI;
         z += fFractZZsm * gsl_ran_gaussian(RandomGenerator, cloud_sig_zz[0]);
 
-        // moving center
         phibin = geo->get_phibin(phi);
-        zbin = geo->get_zbin(z);
+	// zigzag strips have overlapping bins, here we use the phi position of the center of the charge distribution to find the ones that collect charge
+
+
+	zbin = geo->get_zbin(z);
         // bin protection
         if (phibin < 0 || phibin >= nphibins)
-        {
-          continue;
-        }
+	  {
+	    continue;
+	  }
         if (zbin < 0 || zbin >= nzbins)
-        {
-          continue;
-        }
+	  {
+	    continue;
+	  }
         // bincenter correction
         phidisp = phi - geo->get_phicenter(phibin);
         zdisp = z - geo->get_zcenter(zbin);
@@ -490,8 +539,9 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 
         // We should account for the fact that angled tracks deposit charge in a range of Z values, increasing the cluster Z length
         // The new software is proposed to deal with this by using a single volume with a step size of ~0.3 cm, so 4 steps per layer. Let's use 7.
+	// We address it by dividing the Z range into bins, and drifting each bin separately to the pad plane
         // Start with the entry and exit Z values for the track in this layer. These have to come from the G4 hit.
-        // Make nseg  segment centers - keep nseg odd - process each segment through the shaper and ADC binning
+        // Make nseg  segment centers - keep nseg odd - process each segment separately through the assignment of charge to cells
 
         // Note that we ignore the difference in drift-diffusion between segments here, for convenience - it will be tiny
 
@@ -502,24 +552,146 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 	if(nseg%2==0)nseg+=1;
         // loop over the segment centers and distribute charge to the cells from each one
         for (int izr = 0; izr < nseg; izr++)
-        {
-          double zsegoffset = (izr - nseg / 2) * zrange / nseg;
+	  {
+	    double zsegoffset = (izr - nseg / 2) * zrange / nseg;
+	    
+	    // offsetting z from the average for the layer may change the zbin, fix that
+	    int zbinseg = zbin = geo->get_zbin(z + zsegoffset);
+	    if (zbinseg < 0 || zbinseg >= nzbins)
+	      {
+		continue;
+	      }
+	    double zdispseg = z + zsegoffset - geo->get_zcenter(zbinseg);
 
-          // offsetting z from the average for the layer may change the zbin, fix that
-          int zbinseg = zbin = geo->get_zbin(z + zsegoffset);
-          if (zbinseg < 0 || zbinseg >= nzbins)
-          {
-            continue;
-          }
-          double zdispseg = z + zsegoffset - geo->get_zcenter(zbinseg);
+	    if (verbosity > 2000) cout << " ---------- segment izr = " << izr << " with zsegoffset " << zsegoffset << " zbinseg " << zbinseg << " zdispseg " << zdispseg << endl;
 
-          if (verbosity > 2000) cout << " ---------- segment izr = " << izr << " with zsegoffset " << zsegoffset << " zbinseg " << zbinseg << " zdispseg " << zdispseg << endl;
+	    // OK, we have the location of the charge distribution center (phi,z), and its sigma values in phi and Z at the pad plane
+	    // The assignment of charge to zigzag pads and z bins is orthogonal, so we separate them
+	   
+	    // Find the zigzag pads that will receive charge from this segment, and get the fraction of charge going to each one.
+	    // Calculate the maximum extent in r-phi of pads in this layer. 
+	    double pad_rphi =  (2 * M_PI / geo->get_phibins()) * (geo->get_radius() + geo->get_thickness() / 2.0);  
 
-          // Now:
-          //    spread the charge in Z using the sigma due to the SAMPA chip shaping time
-          //    spread the charge in r-phi using the sigma due to the drift-diffusion and GEM stack broadening
+	    int npads = 0;
+	    int pad_phibin[10];
+	    double pad_share[10];
 
+	    // make a triangular function to represent the charge efficiency of the pad vs r-phi
+	    TF1 * fstrip = new TF1("fstrip","[0]-abs(x)", -pad_rphi/2.0, pad_rphi/2.0); 
+	    fstrip->SetParameter(0, pad_rphi);
+
+	    // rescale the axis of the charge distribution to match the sigma for this hit
+	    for(int istrip=0;istrip<nstrips;istrip++)
+	      {
+		slice_x_scaled[istrip] = slice_x[istrip] * cloud_sig_rp / sigmaT;
+	      }
+
+	    // Get a list of zigzag pads within reach of the charge distribution
+	    double philim_low = phi - 4.5 * cloud_sig_rp /  (geo->get_radius() + geo->get_thickness() / 2.0) -  ( 2 * M_PI / geo->get_phibins() );
+	    double philim_high = phi + 4.5 * cloud_sig_rp /  (geo->get_radius() + geo->get_thickness() / 2.0) +  ( 2 * M_PI / geo->get_phibins() );
+	    double phibin_low = geo->get_phibin(philim_low);
+	    double phibin_high = geo->get_phibin(philim_high);
+	    cout << " phi " << phi << " philim_low " << philim_low << " phibin_low " << phibin_low 
+		 << " philim_high " << philim_high << " phibin_high " << phibin_high << endl;
+
+	    npads = phibin_high-phibin_low;
+	    if(npads > 10) npads = 10;
+
+	    for(int ipad = 0; ipad<=npads;ipad++)
+	      {
+		// find the offset in r-phi of the zigzag pad center from the charge center
+		pad_phibin[ipad] = phibin_low + ipad;
+		double phi_strip = geo->get_phicenter(pad_phibin[ipad]);
+		double offset = phi - phi_strip;
+
+		cout << " ipad " << ipad << " phibin_now " << pad_phibin[ipad] << " phi_strip " << phi_strip <<  " phi " << phi << " offset " << offset << endl;
+
+		double overlap_int = 0.0;	      
+
+		for(int istrip=0;istrip<nstrips;istrip++)
+		  {
+		    // Get the rphi value at the strip to use for the triangle function here
+		    double x_tri = slice_x[istrip] - offset; 
+
+		    // evaluate the triangle function value at each strip and get the product
+		    if(x_tri > slice_x[0] && x_tri < slice_x[nstrips-1] && x_tri > -pad_rphi/2.0 && x_tri < pad_rphi/2.0)
+		      {
+			double product = fstrip->Eval(x_tri) * slice_int[istrip];
+			cout << "       istrip " << istrip << " x_tri  " << x_tri << " fstrip " << fstrip->Eval(x_tri) << " slice_int [i] " << slice_int[istrip] << " product " << product << endl;
+			overlap_int += product;
+		      }  	  
+		  }
+		pad_share[ipad] = overlap_int;
+ 
+		cout << " for pad " << ipad  << " with offset " << offset << " integral is " << pad_share[ipad] << endl;	     	      
+	      }
+	  
+	    // Now we want to get the charge shares for the z bins
+	    
+	    int n_zz = int(3 * (cloud_sig_zz[0] + cloud_sig_zz[1]) / (2.0 * zstepsize) + 1);
+	    double cloud_sig_zz_inv[2];
+	    cloud_sig_zz_inv[0] = 1. / cloud_sig_zz[0];
+	    cloud_sig_zz_inv[1] = 1. / cloud_sig_zz[1];
+
+	    double adc_bin_share[20];	  
+	    int adc_zbin[20];
+	    int n_adc_bins = n_zz * 2 + 1;
+	    if(n_adc_bins > 20) n_adc_bins = 20;
+
+	    for (int iz = 0; iz < n_adc_bins; ++iz)
+	      {
+		adc_zbin[iz] = zbinseg + iz;
+		if ((adc_zbin[iz] < min_cell_zbin) || (adc_zbin[iz] > max_cell_zbin)) continue;
+		// Get the integral of the charge probability distribution in Z inside the current Z step. We only need to get the relative signs correct here, I think
+		// this is correct for z further from the membrane - charge arrives early
+		double zLim1 = 0.5 * M_SQRT2 * ((iz + 0.5) * zstepsize - zdispseg) * cloud_sig_zz_inv[0];
+		double zLim2 = 0.5 * M_SQRT2 * ((iz - 0.5) * zstepsize - zdispseg) * cloud_sig_zz_inv[0];
+		// The above is correct if we are in the leading part of the time distribution. In the tail of the distribution we use the second gaussian width
+		// this is correct for z  closer to the membrane - charge arrives late
+		if (zLim1 > 0)
+		  zLim1 = 0.5 * M_SQRT2 * ((iz + 0.5) * zstepsize - zdispseg) * cloud_sig_zz_inv[1];
+		if (zLim2 > 0)
+		  zLim2 = 0.5 * M_SQRT2 * ((iz - 0.5) * zstepsize - zdispseg) * cloud_sig_zz_inv[1];
+		// 1/2 * the erf is the integral probability from the argument Z value to zero, so this is the integral probability between the Z limits
+		adc_bin_share[iz] = 0.5 * (erf(zLim1) - erf(zLim2));
+	      }	 
+	  
+	    // Now we can add the charge from this drifted segment of the track to  the cells
+	    for(int ipad = 0; ipad<npads; ipad++)
+	      {
+		for(int iz=0; iz<n_adc_bins; iz++)
+		  {
+		    float neffelectrons = (2000 / nseg) * nelec * (pad_share[ipad] * adc_bin_share[iz]);  // adding constant electron avalanche (value chosen so that digitizer will not trip)
+
+		    if (neffelectrons < 0) continue;  // skip no signals
+		    unsigned long key = adc_zbin[iz] * nphibins + pad_phibin[ipad];
+		    std::map<unsigned long long, PHG4Cell *>::iterator it = cellptmap.find(key);
+		    PHG4Cell *cell;
+		    if (it != cellptmap.end())
+		      {
+			cell = it->second;
+		      }
+		    else
+		      {
+			PHG4CellDefs::keytype akey = PHG4CellDefs::SizeBinning::genkey(*layer, adc_zbin[iz], pad_phibin[ipad]);
+			cell = new PHG4Cellv2(akey);
+			cellptmap[key] = cell;
+		      }
+		    if (verbosity > 2000) cout << "    adding edep = neffelectrons = " << neffelectrons << " to cell with key = " << key << endl;
+		    cell->add_edep(hiter->first, neffelectrons);
+		    cell->add_edep(neffelectrons);
+		    cell->add_shower_edep(hiter->second->get_shower_id(), neffelectrons);
+		  
+		  } // end of loop over adc bins
+	      } // end of loop over zigzag pads
+
+	  } // end of loop over z segments
+
+
+	/*
+ 
           int n_rp = int(3 * cloud_sig_rp / (r * phistepsize) + 1);
+
           int n_zz = int(3 * (cloud_sig_zz[0] + cloud_sig_zz[1]) / (2.0 * zstepsize) + 1);
           if (verbosity > 1)
           {
@@ -578,7 +750,8 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
               float neffelectrons = (2000 / nseg) * nelec * (phi_integral * z_integral);  // adding constant electron avalanche (value chosen so that digitizer will not trip)
 
               if (verbosity > 2000)
-                cout << "    cur_z_bin " << cur_z_bin << "  center z " << geo->get_zcenter(cur_z_bin) << " center r-phi " << geo->get_radius() * geo->get_phicenter(cur_phi_bin) << endl
+                cout << "    cur_z_bin " << cur_z_bin << "  center z " << geo->get_zcenter(cur_z_bin) 
+		     << " center r-phi " << geo->get_radius() * geo->get_phicenter(cur_phi_bin) << endl
                      << "            zLim1 " << zLim1 << " zLim2 " << zLim2 << " z_integral " << z_integral << " neffelectrons " << neffelectrons << endl;
 
               if (verbosity > 5000)
@@ -608,11 +781,15 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
             }  //iz
           }    //iphi
         }      // izr
+
+	*/
+
       }
     }
+    
     int count = 0;
     for (std::map<unsigned long long, PHG4Cell *>::iterator it = cellptmap.begin(); it != cellptmap.end(); ++it)
-    {
+      {
       cells->AddCell(it->second);
       int phibin = PHG4CellDefs::SizeBinning::get_phibin(it->second->get_cellid());
       int zbin = PHG4CellDefs::SizeBinning::get_zbin(it->second->get_cellid());
