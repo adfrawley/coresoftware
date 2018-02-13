@@ -16,6 +16,8 @@
 class PHCompositeNode;
 class PHG4TPCDistortion;
 class TH1;
+class TF1;
+class TF2;
 class TProfile2D;
 
 class PHG4CylinderCellTPCReco : public SubsysReco
@@ -34,7 +36,7 @@ public:
   int process_event(PHCompositeNode *topNode);
   
   void Detector(const std::string &d);
-  void cellsize(const int i, const double sr, const double sz);
+  void cellcount(const int i, const int nphi, const double nz);
   void OutputDetector(const std::string &d) {outdetector = d;}
 
   void setHalfLength(const double hz){fHalfLength = hz;}
@@ -65,8 +67,13 @@ public:
 protected:
   std::map<int, int> binning;
   std::map<int, std::pair<double,double>> cell_size; // cell size in phi/z
+  std::map<int, std::pair<int,double>> cell_count; // cell count in phi, size in z
   std::map<int, double> phistep;
   std::map<int, double> etastep;
+  std::vector<int> adc_zbin;
+  std::vector<int> pad_phibin;
+  std::vector<double> pad_phibin_share;
+  std::vector<double> adc_zbin_share;
   std::string detector;
   std::string outdetector;
   std::string hitnodename;
@@ -104,6 +111,8 @@ protected:
   TProfile2D *fHMeanElectronsPerCell;
   TProfile2D *fHErrorRPhi;
   TProfile2D *fHErrorZ;
+  TF1 *fpad;
+  TF2 * dg;
   double fFractRPsm;
   double fFractZZsm;
   double fShapingLead;
