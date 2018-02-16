@@ -273,7 +273,7 @@ int PHG4CylinderCellTPCReco::InitRun(PHCompositeNode *topNode)
       // calculate the double gauss integral between those limits
       slice_int[i] = dg->Integral(off_lo, off_hi, xmin, xmax);
       slice_x[i] = (off_lo + off_hi) / 2.0;
-      slice_x[i] = slice_x[i];
+      //slice_x[i] = slice_x[i];
 
       /*
       cout << "i " << i 
@@ -295,7 +295,7 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 {
   cout << "entering process_event" << endl;
 
-  bool testing = false;
+  bool testing = true;
 
   _timer.get()->restart();
   PHG4HitContainer *g4hit = findNode::getClass<PHG4HitContainer>(topNode, hitnodename.c_str());
@@ -570,7 +570,7 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 		//if(*layer == 7 && testing) cout << " istrip " << istrip << " rescaled slice_x " << slice_x_scaled[istrip] << endl; 
 	      }
 
-	    // Get a list of zigzag pads within reach of the charge distribution
+	    // Get a list of zigzag pads within reach of the charge distribution - (4.5 sigmas + 1/2 pad width) in each direction
 	    double philim_low = phi - 4.5 * cloud_sig_rp /  ( (geo->get_radius() + geo->get_thickness() / 2.0) -  geo->get_phistep() );
 	    double philim_high = phi + 4.5 * cloud_sig_rp /  ( (geo->get_radius() + geo->get_thickness() / 2.0) +  geo->get_phistep() );
 	    double phibin_low = geo->get_phibin(philim_low);
@@ -595,27 +595,33 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 
 		// find the offset in r-phi of the zigzag pad center from the charge center		
 		double phi_pad = geo->get_phicenter(pad_now);
-		double offset = phi - phi_pad;  // distance from center of pad to center of charge distribution
+		double offset = phi - phi_pad;  // distance from center of charge distribution to center of pad
 		double offset_rphi =  offset * (geo->get_radius() + geo->get_thickness() / 2.0); 
 		
-		if(*layer == 7 && testing) cout << " ipad " << ipad << " pad_now " << pad_now << " phi_pad " << phi_pad <<  " phi " << phi 
-						<< " offset " << offset << " offset r-phi " << offset_rphi << endl;
+		if(*layer == 7 && testing) cout << " ipad " << ipad << " pad_now " << pad_now 
+						<< " phi_pad " << phi_pad <<  " phi " << phi 
+						<< " phi for pad_now+100 " <<  geo->get_phicenter(pad_now+100)
+						<< " geo->get_phistep " << geo->get_phistep()
+						<< " offset " << offset << " offset r-phi " << offset_rphi 
+						<< endl;
 		
 		// loop over charge diatribution intervals (AKA strips or slices)
 		double overlap_int = 0.0;	      		
 		for(int istrip=0;istrip<nstrips;istrip++)
 		  {
 		    // we need the r-phi  distance from the pad center to the strip center, so we can calculate the weight
-		    double x_tri = slice_x_scaled[istrip] - offset_rphi;
+		    double x_tri = slice_x_scaled[istrip] + offset_rphi;
 		    
 		    // evaluate the triangle function value at the triangle x corresponding to the center of this strip and get the product
-		    if(x_tri > slice_x_scaled[0] && x_tri < slice_x_scaled[nstrips-1] && x_tri > -pad_rphi/2.0 && x_tri < pad_rphi/2.0)
+		    // Make sure the triangle function is inside its range of validity first
+		    if(x_tri > -pad_rphi/2.0 && x_tri < pad_rphi/2.0)
 		      {
 			double product = fpad->Eval(x_tri) * slice_int[istrip];
 			overlap_int += product;
 			
-			// if (*layer == 7 && testing)  cout << "            accepted: charge strip " << istrip << " x_tri  " << x_tri << " fpad " << fpad->Eval(x_tri) 
-			//      << " slice3_x_scaled " << slice_x_scaled[istrip] << " slice_int [i] " << slice_int[istrip] << " product " << product << endl;
+			if (*layer == 7 && testing)  cout << "            accepted: charge strip " << istrip << " x_tri  " << x_tri << " fpad " << fpad->Eval(x_tri) 
+							  << " slice_x_scaled " << slice_x_scaled[istrip] << " offset_rphi " << offset_rphi 
+							  << " slice_int [i] " << slice_int[istrip] << " product " << product << endl;
 		      }  	  
 		  }
 
