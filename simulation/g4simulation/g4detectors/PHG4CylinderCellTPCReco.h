@@ -94,9 +94,9 @@ protected:
   int num_pixel_layers;
   int nstrips;
 
-  double slice_int[20];
-  double slice_x[20];
-  double slice_x_scaled[20];
+  double slice_int[40];
+  double slice_x[40];
+  double slice_x_scaled[40];
 
   double tmin_default;
   double tmax_default;
@@ -112,6 +112,7 @@ protected:
   TProfile2D *fHErrorRPhi;
   TProfile2D *fHErrorZ;
   TF1 *fpad;
+  TF1 *fcharge;
   TF2 * dg;
   double fFractRPsm;
   double fFractZZsm;
