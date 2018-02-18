@@ -92,12 +92,6 @@ protected:
   double driftv;
 
   int num_pixel_layers;
-  int nstrips;
-
-  double slice_int[40];
-  double slice_x[40];
-  double slice_x_scaled[40];
-
   double tmin_default;
   double tmax_default;
   std::map<int,std::pair<double,double>> tmin_max;

@@ -225,9 +225,8 @@ int PHG4CylinderCellTPCReco::InitRun(PHCompositeNode *topNode)
     seggeo->AddLayerCellGeom(layerseggeo);
   }
 
-
   /*
-  PHG4CylinderCellGeom *testgeo = seggeo->GetLayerCellGeom(46);
+  PHG4CylinderCellGeom *testgeo = seggeo->GetLayerCellGeom(52);
   cout << " phi bins for layer 46: "
        << " phi bins " << testgeo->get_phibins() << " phistep " << testgeo->get_phistep() << endl; 
 
@@ -248,52 +247,6 @@ int PHG4CylinderCellTPCReco::InitRun(PHCompositeNode *topNode)
     tmin_max.insert(std::make_pair(layer, std::make_pair(tmin_default, tmax_default)));
   }
 
-  /*
-  // Calculate the distribution of charge at the pad plane from the GEM output
-  //====================================================
-  // here we use sigmaT. We will adjust the charge width when processing events on a hit by hit basis.
-  // This is actually a double gaussian of width sigmaT, but we integrate it over the radial coordinate 
-  // for slices in r-phi
-
-  // make a TF2 to represent the 2D gaussian function describing the charge distribution, with broad  limits of integration
-  double xmin = -4.5 * sigmaT;
-  double xmax = 4.5 * sigmaT;
-
-  // sets the step size for evaluating strip integrals
-  nstrips = 40; // number of r-phi strips in which to integrate the charge distribution
-  double charge_delta_rphi = (xmax-xmin)/(double) (nstrips);
-
-  //cout << " nstrips " << nstrips << " xmin " << xmin << " xmax " << xmax << " charge_delta_rphi " << charge_delta_rphi << endl;
-
-  double scale = 2.0*3.14159*sigmaT*sigmaT;
-  dg = new TF2("dg","[0]*exp(-x*x/(2*[1] *[1]) - y*y/(2*[1]*[1]))",xmin, xmax, xmin, xmax);  
-  dg->SetParameter(0,1.0/scale);
-  dg->SetParameter(1,sigmaT);
-
-  // calculate and store the charge integrated in a narrow rectangular strip along the radial 
-  // direction as a function of offset from the center of the circle.
-
-  for(int i=0;i<nstrips;i++)
-    {
-      // calculate the offset from the center of the charge circle
-      double off_lo = xmin + (double) i * charge_delta_rphi; 
-      double off_hi = off_lo + charge_delta_rphi;
-
-      // calculate the double gauss integral between those limits
-      slice_int[i] = dg->Integral(off_lo, off_hi, xmin, xmax);
-      slice_x[i] = (off_lo + off_hi) / 2.0;
- 
-
-      cout << "i " << i 
-	   << " off_lo " << off_lo
-	   << " off_hi " << off_hi
-	   << " charge_delta_rphi " << charge_delta_rphi 
-	   << " slice_int " << slice_int[i]
-	   << " slice_x " << slice_x[i]
-	   << endl;
-
-    }
-  */
   fcharge = new TF1("fcharge", "gaus(0)");
   fpad = new TF1("fpad","[0]-abs(x)"); 
 
@@ -336,19 +289,19 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
     PHG4HitContainer::ConstIterator hiter;
     PHG4HitContainer::ConstRange hit_begin_end = g4hit->getHits(*layer);
     PHG4CylinderCellGeom *geo = seggeo->GetLayerCellGeom(*layer);
-    //if (verbosity > 1000)
-    if (*layer == 7 && testing)
-    {
-      std::cout << "Layer " << (*layer);
-      std::cout << " Radius " << geo->get_radius();
-      std::cout << " Thickness " << geo->get_thickness();
-      std::cout << " zmin " << geo->get_zmin();
-      std::cout << " nbinsz " << geo->get_zbins();
-      std::cout << " phimin " << geo->get_phimin();
-      std::cout << " nbinsphi " << geo->get_phibins();
-      std::cout << std::endl;
-    }
-
+    if (verbosity > 1000)
+      if (*layer == test_layer)
+	{
+	  std::cout << "Layer " << (*layer);
+	  std::cout << " Radius " << geo->get_radius();
+	  std::cout << " Thickness " << geo->get_thickness();
+	  std::cout << " zmin " << geo->get_zmin();
+	  std::cout << " nbinsz " << geo->get_zbins();
+	  std::cout << " phimin " << geo->get_phimin();
+	  std::cout << " nbinsphi " << geo->get_phibins();
+	  std::cout << std::endl;
+	}
+    
     int nphibins = n_phi_z_bins[*layer].first;
     int nzbins = n_phi_z_bins[*layer].second;
 
@@ -390,13 +343,13 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
       double r = sqrt(xinout * xinout + yinout * yinout);
       phi = atan2(hiter->second->get_avg_y(), hiter->second->get_avg_x());
       z = hiter->second->get_avg_z();
-      //if (verbosity > 2000)
-      if (*layer == test_layer && testing)
-        cout << "loop over hits, hit avge z = " << hiter->second->get_avg_z()
-             << " hit avge x = " << hiter->second->get_avg_x()
-             << " hit avge y = " << hiter->second->get_avg_y()
-             << " phi = " << phi
-             << endl;
+      if (verbosity > 2000)
+	if (*layer == test_layer)
+	  cout << "loop over hits, hit avge z = " << hiter->second->get_avg_z()
+	       << " hit avge x = " << hiter->second->get_avg_x()
+	       << " hit avge y = " << hiter->second->get_avg_y()
+	       << " phi = " << phi
+	       << endl;
       // keep copy of original truth phi
       double truth_phi = phi;
 
@@ -528,11 +481,10 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
         cloud_sig_zz[0] *= (1 + fFractZZsm);
         cloud_sig_zz[1] *= (1 + fFractZZsm);
 
-        //if (verbosity > 2000)
-	if(*layer == 7 && testing)
-	  cout << "After adding random displacement: phi = " << phi << " r = " << r << "  z = " << z << " phibin = " << phibin << " zbin = " << zbin << endl
-               << " new cloud_sig_rp " << cloud_sig_rp << " cloud_sig_zz[0] " << cloud_sig_zz[0]
-               << " cloud_sig_zz[1] " << cloud_sig_zz[1] << endl;
+        if (verbosity > 2000)
+	  if(*layer == test_layer)  cout << "After adding random displacement: phi = " << phi << " r = " << r << "  z = " << z << " phibin = " << phibin 
+					 << " zbin = " << zbin << endl << " new cloud_sig_rp " << cloud_sig_rp << " cloud_sig_zz[0] " << cloud_sig_zz[0]
+					 << " cloud_sig_zz[1] " << cloud_sig_zz[1] << endl;
 
         //=====
 
@@ -562,10 +514,10 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 	      }
 	    double zdispseg = z + zsegoffset - geo->get_zcenter(zbinseg);
 
-	    //if (verbosity > 2000) 
-	    if(*layer == test_layer && testing)  cout << " ---------- segment izr = " << izr << " with zsegoffset " << zsegoffset << " zbinseg " << zbinseg 
+	    if (verbosity > 2000) 
+	      if(*layer == test_layer)  cout << " ---------- segment izr = " << izr << " with zsegoffset " << zsegoffset << " zbinseg " << zbinseg 
 					     << " zdispseg " << zdispseg << " geo->get_zcenter " <<  geo->get_zcenter(zbinseg) << endl;
-
+	    
 	    //==================
 	    // OK, we have the location of the charge distribution center (phi,z), and its sigma values in phi and Z at the pad plane
 	    // The assignment of charge to zigzag pads and z bins is orthogonal, so we separate them
@@ -577,15 +529,7 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 	    // make a triangular function to represent the charge efficiency of the pad vs r-phi
 	    fpad->SetParameter(0, pad_rphi/2.0);
 
-	    /*
-	    // rescale the axis of the charge distribution to match the sigma for this hit
-	    for(int istrip=0;istrip<nstrips;istrip++)
-	      {
-		slice_x_scaled[istrip] = slice_x[istrip] * cloud_sig_rp / sigmaT;
-		//if(*layer == test_layer && testing) cout << " istrip " << istrip << " rescaled slice_x " << slice_x_scaled[istrip] << endl; 
-	      }
-	    */
-
+	    // make the charge distribution gaussian
 	    fcharge->SetParameter(0, 1.0);
 	    fcharge->SetParameter(1, 0.0);
 	    fcharge->SetParameter(2, cloud_sig_rp);
@@ -595,9 +539,9 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 	    double philim_high = phi + 4.5 * cloud_sig_rp /  ( (geo->get_radius() + geo->get_thickness() / 2.0) +  geo->get_phistep() );
 	    double phibin_low = geo->get_phibin(philim_low);
 	    double phibin_high = geo->get_phibin(philim_high);
-	    if(*layer == test_layer && testing)
-	      cout << " phi " << phi << " philim_low " << philim_low << " phibin_low " << phibin_low 
-		   << " philim_high " << philim_high << " phibin_high " << phibin_high << endl;
+	    if(verbosity > 2000)
+	      if(*layer == test_layer) cout << " phi " << phi << " philim_low " << philim_low << " phibin_low " << phibin_low 
+		     << " philim_high " << philim_high << " phibin_high " << phibin_high << endl;
 
 	    int npads = phibin_high - phibin_low;
 	    if(npads < 0 || npads > 10) npads = 10;
@@ -618,14 +562,15 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 		double offset = phi - phi_pad;  // distance from center of charge distribution to center of pad
 		double offset_rphi =  offset * (geo->get_radius() + geo->get_thickness() / 2.0); 
 	
-		if(*layer == test_layer && testing) cout << " ipad " << ipad << " pad_now " << pad_now 
-							 << "  pad_rphi/2 " << pad_rphi/2.0
-							 << " phi_pad " << phi_pad <<  " phi " << phi 
-							 << " cloud_sig_rp " << cloud_sig_rp
-							 << " geo->get_phistep " << geo->get_phistep()
-							 << " offset " << offset << " offset r-phi " << offset_rphi 
-							 << endl;
-
+		if(verbosity > 2000)
+		  if(*layer == test_layer) cout << " ipad " << ipad << " pad_now " << pad_now 
+						<< "  pad_rphi/2 " << pad_rphi/2.0
+						<< " phi_pad " << phi_pad <<  " phi " << phi 
+						<< " cloud_sig_rp " << cloud_sig_rp
+						<< " geo->get_phistep " << geo->get_phistep()
+						<< " offset " << offset << " offset r-phi " << offset_rphi 
+						<< endl;
+		
 		// For each strip, we fold fcharge with fpad
 		// assume the charge distribution is centered at rphi = 0.
 		// then the pad is centered at offset_rphi (+ve for pad lower in phi, -ve for pad higher in phi)
@@ -637,20 +582,19 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 		double overlap_int = 0.0;		
 		for(int ich = 0;ich<ncharge;++ich)
 		  {
-		    //double xch = -4.5*cloud_sig_rp + (double) ich * 4.5* cloud_sig_rp / (double) (ncharge/2);
 		    double xch = 4.5*cloud_sig_rp - (double) ich * 4.5* cloud_sig_rp / (double) (ncharge/2);
 		    double xpad = offset_rphi + xch;
 		    if(xpad > -pad_rphi/2.0 && xpad < pad_rphi/2.0)
 		      {
 			double product = fcharge->Eval(xch) * fpad->Eval(xpad);
 			overlap_int += product;
-			/*
-			if(testing && *layer == test_layer)
-			  cout << " ich " << ich 
-			       << " xch " << xch << " xpad " << xpad 
-			       << " fcharge " << fcharge->Eval(xch)   << " fpad " << fpad->Eval(xpad)
-			       << " product " << product << endl; 
-			*/
+			
+			if(verbosity > 5000)
+			  if(*layer == test_layer)
+			    cout << " ich " << ich 
+				 << " xch " << xch << " xpad " << xpad 
+				 << " fcharge " << fcharge->Eval(xch)   << " fpad " << fpad->Eval(xpad)
+				 << " product " << product << endl; 
 		      }
 		  }
 		if(overlap_int > overlap_threshold)
@@ -664,7 +608,8 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 		  }				
 	      }
 	    
-	    if(*layer == test_layer && testing) cout << " pad_frac_norm = " << pad_frac_norm << endl;
+	    if(verbosity > 2000)
+	      if(*layer == test_layer) cout << " pad_frac_norm = " << pad_frac_norm << endl;
 
 	    // Do a quick phi clustering to check how well phi position matches hit position
 	    double cum = 0.0;
@@ -677,10 +622,10 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 		cum += geo->get_phicenter(pad_num) * pad_share / pad_frac_norm;
 		norm += pad_share/pad_frac_norm;
 	      }
-	    if(testing && *layer == test_layer) 
-	      cout << "  quick phi centroid is " << cum / norm << " phi was " << phi << " difference = " << cum/norm - phi 
-		   << " truth phi " << truth_phi  << " difference " << cum/norm - truth_phi 
-		   << endl;
+	    if(verbosity > 2000)
+	      if(*layer == test_layer) cout << "  quick phi centroid is " << cum / norm << " phi was " << phi << " difference = " << cum/norm - phi 
+					    << " truth phi " << truth_phi  << " difference " << cum/norm - truth_phi 
+					    << endl;
 	    
 	    // Now we want to get the charge shares for the z bins
 	    // ADF did not change this algorithm except for bin counting
@@ -697,7 +642,8 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 	      {
 		int adc_zbin_now = zbinseg + iz;
 		
-		if(*layer == test_layer && testing) cout << " zbinseg " << zbinseg << " adc_zbin_now = " << adc_zbin_now  << " max_cell_zbin " << max_cell_zbin 
+		if(verbosity > 2000)
+		  if(*layer == test_layer) cout << " zbinseg " << zbinseg << " adc_zbin_now = " << adc_zbin_now  << " max_cell_zbin " << max_cell_zbin 
 						<< " min_cell_zbin " << min_cell_zbin << endl;
 		
 		// check that this does not go outside minimum or maximum bin number
@@ -725,15 +671,18 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 		
 		    zbin_frac_norm += zbin_share;
 		    
-		    if(*layer == test_layer && testing) 
-		      cout << "    zLim1 " << zLim1 << " zLim2 " << zLim2 << " zbin_share " << zbin_share << endl;
+		    if(verbosity > 2000) 
+		      if(*layer == test_layer) 
+			cout << "    zLim1 " << zLim1 << " zLim2 " << zLim2 << " zbin_share " << zbin_share << endl;
 		  }	 
 	      }
 	    
-	    if(*layer == test_layer && testing) cout << " zbin_frac_norm = " << zbin_frac_norm << endl;
-	    
-	    if(*layer == test_layer && testing) cout << " nelec " << nelec  << endl;		  
-	    
+	    if(verbosity > 2000)
+	      {
+		if(*layer == test_layer) cout << " zbin_frac_norm = " << zbin_frac_norm << endl;
+		if(*layer == test_layer) cout << " nelec " << nelec  << endl;		  
+	      }
+
 	    // Now we can add the charge from this drifted segment of the track to  the cells
 	    
 	    for(unsigned int ipad = 0; ipad < pad_phibin.size(); ++ipad)
@@ -766,8 +715,8 @@ int PHG4CylinderCellTPCReco::process_event(PHCompositeNode *topNode)
 			cell = new PHG4Cellv2(akey);
 			cellptmap[key] = cell;
 		      }
-		    //if (verbosity > 2000) 
-		    if(*layer == test_layer && testing) cout << "    adding edep = neffelectrons = " << neffelectrons << " to cell with zbin_num " << zbin_num 
+		    if (verbosity > 2000) 
+		      if(*layer == test_layer) cout << "    adding edep = neffelectrons = " << neffelectrons << " to cell with zbin_num " << zbin_num 
 						    << " pad_num " << pad_num << " key = " << key << endl;
 		    cell->add_edep(hiter->first, neffelectrons);
 		    cell->add_edep(neffelectrons);
