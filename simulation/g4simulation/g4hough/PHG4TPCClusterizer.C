@@ -33,6 +33,8 @@
 #include <TFitResultPtr.h>
 #include <TStopwatch.h>
 #include <TH1D.h>
+#include <TGraph2D.h>
+#include <TF2.h>
 
 #include <TMatrixF.h>
 
@@ -93,6 +95,7 @@ PHG4TPCClusterizer::PHG4TPCClusterizer(const char *name) :
   fSW(NULL),
   fHTime(NULL)
 {
+  f2D = new TF2("f2D", "[0]*TMath::Exp(-1.0*( (x-[1])*(x-[1]) / ([2]*[2]) + (y-[3])*(y-[3]) / ([4]*[4])) / 2.0  )"); 
 }
 //===================
 PHG4TPCClusterizer::~PHG4TPCClusterizer() {
@@ -107,6 +110,7 @@ PHG4TPCClusterizer::~PHG4TPCClusterizer() {
   if(fHClusterErrorPP2) delete fHClusterErrorPP2;
   if(fHClusterErrorZZ2) delete fHClusterErrorZZ2;
   if(fHClusterDensity2) delete fHClusterDensity2;
+  if(f2D) delete f2D;
 }
 //===================
 int PHG4TPCClusterizer::wrap_phibin(int bin) {
@@ -495,7 +499,17 @@ void PHG4TPCClusterizer::fit(int pbin, int zbin, int& nhits_tot) {
   if(verbosity>1000) 
     std::cout << "max " << fAmps[zbin*fNPhiBins+pbin] << std::endl;
   if(verbosity>1000) 
-    std::cout << "izdown " << izdown << " izup " << izup << std::endl;
+    std::cout << "izdownmax " << izdownmax << " izupmax " << izupmax << std::endl;
+
+  // loop over all cells in the list specified by
+  //     izdownmax and izupmax
+  //     ipdown and ipup
+
+  // keep the cells in a 2D array for later analysis
+  int ncells = -1;
+  double phicent[1000];  // large enough to encompass all possible ranges
+  double zcent[1000];  // large enough to encompass all possible ranges
+  double binxy[1000];  // large enough to encompass all possible ranges
 
   for(int iz=-izdownmax; iz<izupmax; ++iz) {
     int cz = zbin + iz;
@@ -513,7 +527,20 @@ void PHG4TPCClusterizer::fit(int pbin, int zbin, int& nhits_tot) {
 	std::cout << Form("%.2f | ",fAmps[bin]);
 	if(ip==fFitRangeP) std::cout << std::endl;
       }
-      if(fAmps[bin] < fFitEnergyThreshold*peak) continue; // skip small (include empty)
+
+      // this is the original algorithm for determing cluster centroid in phi and Z
+      //if(fAmps[bin] < fFitEnergyThreshold*peak) continue; // skip small (include empty)
+      if(fAmps[bin] < 200.0) continue; // skip small (include empty)
+
+      // capture the bin yields in a 2d array for later use
+      ncells += 1;
+      if(ncells > 999) ncells = 999;
+      binxy[ncells]= fAmps[bin];      
+      phicent[ncells] =  fGeoLayer->get_phicenter(cp);
+      zcent[ncells] =  fGeoLayer->get_zcenter(cz);
+      //if(verbosity > 5000)
+	cout << " ncells " << ncells << " binxy " << binxy[ncells] << " phicent " << phicent[ncells] << " zcent " << zcent[ncells] << endl; 
+
       used = true;
       nphis++;
       float ee = fAmps[bin];
@@ -534,10 +561,69 @@ void PHG4TPCClusterizer::fit(int pbin, int zbin, int& nhits_tot) {
     if(used) fFitSizeZ++;
     fFitSizeP = TMath::Max(fFitSizeP,float(nphis));
   }
-  if(verbosity>1000) {
+  //if(verbosity>1000) {
     std::cout << " FIT | phi " << fit_p_mean() << " from " << fFitP0;
     std::cout << " | z " << fit_z_mean() << " from " << fFitZ0 << std::endl;
-  }
+    //}
+
+  // Try fitting the 2D array to determine the centroid
+  // use a double gaussian
+  // initial parameters from old algorithm 
+  if(ncells > 5)
+    {
+      TGraph2D *gr2D = new TGraph2D(ncells,phicent,zcent,binxy);
+      if(fGeoLayer->get_layer() == 48)
+	gr2D->Draw();
+
+      double phirange = (ipdown+ipup) * fGeoLayer->get_phistep();
+      double zrange = (izdownmax+izupmax) * fGeoLayer->get_zstep();
+      double phi_sig = phirange / 6.0;
+      double z_sig = zrange / 6.0;
+      double phi_mean = fit_p_mean();
+      double z_mean = fit_z_mean();
+      double anorm = peak*1.7;
+      
+      f2D->SetParameter(0, anorm);  // norm
+      f2D->SetParameter(1, phi_mean);      // mean phi
+      f2D->SetParameter(2, phi_sig);      // sigma phi
+      f2D->SetParameter(3, z_mean);      // mean Z
+      f2D->SetParameter(4, z_sig);      // sigma Z
+      f2D->SetRange(phi_mean-phirange, z_mean-zrange, phi_mean+phirange, z_mean+zrange);
+      //if(verbosity > 5000)
+	cout << " Before 2D fit: phi_mean " << phi_mean << " z_mean " << z_mean 
+	     << " phi_sig " << phi_sig << " z_sig " << z_sig 
+	     << " phi low " << phi_mean-phirange*1.2   	 << " phi high " << phi_mean+phirange*1.2
+	     << " z low " << z_mean-zrange*1.2   	 << " z high " << z_mean+zrange*1.2
+	     << " peak " << peak << " norm " << anorm 
+	     << endl;
+
+	/*
+      cout << " At peak where phi = " << phi_mean << " z = " << z_mean << " f2D = " << f2D->Eval(phi_mean,z_mean) << endl;
+      cout << " At -1 sigma where phi = " << phi_mean - phi_sig << " z = " << z_mean-z_sig << " f2D = " << f2D->Eval(phi_mean-phi_sig, z_mean-z_sig) << endl;
+      cout << " At -2 sigma where phi = " << phi_mean - 2.0*phi_sig << " z = " << z_mean-2.0*z_sig << " f2D = " << f2D->Eval(phi_mean-2.0*phi_sig, z_mean-2.0*z_sig) << endl;
+ cout << " At -6 sigma where phi = " << phi_mean - 6.0*phi_sig << " z = " << z_mean-6.0*z_sig << " f2D = " << f2D->Eval(phi_mean-6.0*phi_sig, z_mean-6.0*z_sig) << endl;
+      cout << " At +1 sigma where phi = " << phi_mean + phi_sig << " z = " << z_mean+z_sig << " f2D = " << f2D->Eval(phi_mean+phi_sig, z_mean+z_sig) << endl;
+      cout << " At +2 sigma where phi = " << phi_mean + 2.0*phi_sig << " z = " << z_mean+2.0*z_sig << " f2D = " << f2D->Eval(phi_mean+2.0*phi_sig, z_mean+2.0*z_sig) << endl;
+ cout << " At +6 sigma where phi = " << phi_mean + 6.0*phi_sig << " z = " << z_mean+6.0*z_sig << " f2D = " << f2D->Eval(phi_mean+6.0*phi_sig, z_mean+6.0*z_sig) << endl;
+	*/
+
+      gr2D->Fit(f2D,"R");
+      
+      // extract fit parameters
+
+      phi_mean = f2D->GetParameter(1);      
+      phi_sig = f2D->GetParameter(2);
+      z_mean = f2D->GetParameter(3);
+      z_sig = f2D->GetParameter(4);
+
+      //if(verbosity > 5000)
+	cout << " After 2D fit: phi_mean " << phi_mean << " z_mean " << z_mean 
+	     << " phi_sig " << phi_sig << " z_sig " << z_sig 
+	     << " peak " << peak << " norm " << f2D->GetParameter(0) 
+	     << endl;
+      
+      if(gr2D) delete gr2D;
+    }
 }
 //===================
 int PHG4TPCClusterizer::InitRun(PHCompositeNode* topNode) {
@@ -573,6 +659,7 @@ int PHG4TPCClusterizer::InitRun(PHCompositeNode* topNode) {
     se->registerHisto( fHClusterWindowZ );
     se->registerHisto( fHTime );
   }
+
   return Fun4AllReturnCodes::EVENT_OK;
 }
 //===================
@@ -662,9 +749,11 @@ int PHG4TPCClusterizer::process_event(PHCompositeNode* topNode) {
     //Prepare Layer unfold response matrix, source matrix
     prepare_layer(fGeoLayer->get_radius() + 0.5*fGeoLayer->get_thickness());
     // ==>unpacking information
+    float abs_threshold = 200.0;
     for(unsigned int i = 0; i < layer_sorted[layer - fMinLayer].size(); ++i) {
       const SvtxHit* hit = layer_sorted[layer - fMinLayer][i];
-      if(hit->get_e() <= 0.) continue;
+      //if(hit->get_e() <= 0.) continue;
+      if(hit->get_e() <= abs_threshold) continue;
       if(verbosity>2000) std::cout << hit->get_cellid();
       PHG4Cell* cell = cells->findCell(hit->get_cellid()); //not needed once geofixed
       int phibin = PHG4CellDefs::SizeBinning::get_phibin(cell->get_cellid());//cell->get_binphi();

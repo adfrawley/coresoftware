@@ -9,6 +9,7 @@ class PHG4CylinderCellGeom;
 class TH1F;
 class TProfile2D;
 class TStopwatch;
+class TF2;
 
 class PHG4TPCClusterizer : public SubsysReco {
  public:
@@ -100,6 +101,9 @@ class PHG4TPCClusterizer : public SubsysReco {
   TProfile2D *fHClusterWindowZ;
   TStopwatch *fSW;
   TH1F *fHTime;
+
+  //TGraph2D *gr2D;
+  TF2 *f2D;
 
 };
 
