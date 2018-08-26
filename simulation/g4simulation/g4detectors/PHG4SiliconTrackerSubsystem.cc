@@ -198,6 +198,7 @@ void PHG4SiliconTrackerSubsystem::SetDefaultParameters()
   int nladder[4] = {34, 30, 36, 42};
   // sensor radius_inner and sensor_radius_outer are set in the constructor for now, to avoid a problem with the parameter class
 
+  // we set all length parameters in mm
   for(int i=0;i<nlayers;i++)
     {
       // To reconfigure the layers, all you have to do is overide the defaults for these four arrays from the tracking macro

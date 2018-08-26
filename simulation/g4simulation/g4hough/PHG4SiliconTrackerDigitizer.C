@@ -16,7 +16,8 @@
 #include <g4detectors/PHG4CylinderCellGeomContainer.h>
 #include <g4detectors/PHG4CylinderCellGeom.h>
 #include <g4detectors/PHG4CylinderGeomContainer.h>
-#include <g4detectors/PHG4CylinderGeom.h>
+//#include <g4detectors/PHG4CylinderGeom.h>
+#include <g4detectors/PHG4CylinderGeom_Siladders.h>
 
 #include <iostream>
 #include <cmath>
