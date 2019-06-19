@@ -89,17 +89,6 @@ class Track
 
   TVector3 get_mom() const;
 
-  // old tracking
-  const std::vector<unsigned int>& get_cluster_IDs() const
-  {
-    return _clusterIDs;
-  }
-  void set_cluster_IDs(const std::vector<unsigned int>& clusterIDs)
-  {
-    _clusterIDs = clusterIDs;
-  }
-
-  // new tracking
   const std::vector<TrkrDefs::cluskey>& get_cluster_keys() const
   {
     return _clusterkeys;
@@ -132,8 +121,6 @@ class Track
   int verbosity;
 
   genfit::Track* _track;
-  //std::vector<PHGenFit::Measurement*> _measurements;
-  std::vector<unsigned int> _clusterIDs;
   std::vector<TrkrDefs::cluskey> _clusterkeys;
 
   //SMART(genfit::Track) _track;

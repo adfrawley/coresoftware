@@ -47,7 +47,6 @@ class PHTrackPropagating : public SubsysReco
   ///
   virtual int End() = 0;
 
-  //SvtxClusterMap *_cluster_map;
   TrkrClusterContainer *_cluster_map;
   SvtxVertexMap *_vertex_map;
   SvtxTrackMap *_track_map;

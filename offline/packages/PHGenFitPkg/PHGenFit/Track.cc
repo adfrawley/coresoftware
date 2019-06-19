@@ -79,7 +79,7 @@ Track::Track(const PHGenFit::Track& t)
 {
   _track = new genfit::Track(*(t.getGenFitTrack()));
   verbosity = t.verbosity;
-  _clusterIDs = t.get_cluster_IDs();
+  // _clusterIDs = t.get_cluster_IDs();
   _clusterkeys = t.get_cluster_keys();
 }
 
@@ -89,7 +89,7 @@ int Track::addMeasurement(PHGenFit::Measurement* measurement)
   msmts.push_back(measurement->getMeasurement());
   _track->insertPoint(new genfit::TrackPoint(msmts, _track));
 
-  _clusterIDs.push_back(measurement->get_cluster_ID());
+  // _clusterIDs.push_back(measurement->get_cluster_ID());
   _clusterkeys.push_back(measurement->get_cluster_key());
 
   delete measurement;
@@ -107,7 +107,7 @@ int Track::addMeasurements(std::vector<PHGenFit::Measurement*>& measurements)
         new genfit::TrackPoint(msmts, _track));
 
     //_measurements.push_back(measurement);
-    _clusterIDs.push_back(measurement->get_cluster_ID());
+    //   _clusterIDs.push_back(measurement->get_cluster_ID());
     _clusterkeys.push_back(measurement->get_cluster_key());
 
     delete measurement;
@@ -122,7 +122,7 @@ int Track::deleteLastMeasurement()
 {
   _track->deletePoint(-1);
 
-  _clusterIDs.pop_back();
+  //  _clusterIDs.pop_back();
   _clusterkeys.pop_back();
 
   return 0;
@@ -139,7 +139,7 @@ Track::~Track()
   //	}
   //	_measurements.clear();
 
-  _clusterIDs.clear();
+  //  _clusterIDs.clear();
   _clusterkeys.clear();
 }
 
@@ -497,7 +497,7 @@ int Track::updateOneMeasurementKalman(
     new_track->addMeasurement(measurement);
 
 #ifdef _DEBUG_
-    std::cout << __LINE__ << ": clusterIDs size: " << new_track->get_cluster_IDs().size() << std::endl;
+    //std::cout << __LINE__ << ": clusterIDs size: " << new_track->get_cluster_IDs().size() << std::endl;
     std::cout << __LINE__ << ": clusterkeyss size: " << new_track->get_cluster_keys().size() << std::endl;
 #endif
 
@@ -538,7 +538,7 @@ int Track::updateOneMeasurementKalman(
     {
       if (verbosity > 1)
       {
-        LogWarning("Can not extrapolate to measuremnt with cluster_ID and cluster key: ") << measurement->get_cluster_ID() 
+        LogWarning("Can not extrapolate to measuremnt with cluster key: ") 
 									  << "    " << measurement->get_cluster_key() 
 									  << std::endl;
       }

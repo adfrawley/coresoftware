@@ -57,7 +57,6 @@ int PHTrackPropagating::GetNodes(PHCompositeNode* topNode)
   //---------------------------------
 
 
-  //_cluster_map = findNode::getClass<SvtxClusterMap>(topNode, "SvtxClusterMap");
   _cluster_map = findNode::getClass<TrkrClusterContainer>(topNode, "TRKR_CLUSTER");
   if (!_cluster_map)
   {

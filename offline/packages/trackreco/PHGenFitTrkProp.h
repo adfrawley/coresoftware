@@ -479,7 +479,6 @@ class PHGenFitTrkProp : public PHTrackPropagating
       const bool use_fitted_state_once = false);
 
   //!
-  //PHGenFit::Measurement* SvtxClusterToPHGenFitMeasurement(const SvtxCluster* cluster);
   PHGenFit::Measurement* TrkrClusterToPHGenFitMeasurement(const TrkrCluster* cluster);
 
   //! TrackPropPatRec Call.

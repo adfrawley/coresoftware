@@ -20,10 +20,6 @@ class SvtxTrack : public PHObject
   typedef StateMap::const_iterator ConstStateIter;
   typedef StateMap::iterator StateIter;
 
-  typedef std::set<unsigned int> ClusterSet;
-  typedef ClusterSet::const_iterator ConstClusterIter;
-  typedef ClusterSet::iterator ClusterIter;
-
   typedef std::set<TrkrDefs::cluskey> ClusterKeySet;
   typedef ClusterKeySet::const_iterator ConstClusterKeyIter;
   typedef ClusterKeySet::iterator ClusterKeyIter;
@@ -150,21 +146,6 @@ class SvtxTrack : public PHObject
   // associated cluster ids methods --------------------------------------------
   //
 
-  // needed by old tracking
-  virtual void clear_clusters() {}
-  virtual bool empty_clusters() const { return false; }
-  virtual size_t size_clusters() const { return 0; }
-
-  virtual void insert_cluster(unsigned int clusterid) {}
-  virtual size_t erase_cluster(unsigned int clusterid) { return 0; }
-  virtual ConstClusterIter begin_clusters() const { return ClusterSet().end(); }
-  virtual ConstClusterIter find_cluster(unsigned int clusterid) const { return ClusterSet().end(); }
-  virtual ConstClusterIter end_clusters() const { return ClusterSet().end(); }
-  virtual ClusterIter begin_clusters() { return ClusterSet().end(); }
-  virtual ClusterIter find_cluster(unsigned int clusterid) { return ClusterSet().end(); }
-  virtual ClusterIter end_clusters() { return ClusterSet().end(); }
-
-  // needed by new tracking
   virtual void clear_cluster_keys() {}
   virtual bool empty_cluster_keys() const { return false; }
   virtual size_t size_cluster_keys() const { return 0; }

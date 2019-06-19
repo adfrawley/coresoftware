@@ -17,7 +17,6 @@
 // forward declarations
 class PHCompositeNode;
 
-//class SvtxClusterMap;
 class TrkrClusterContainer;
 
 class SvtxVertexMap;
@@ -50,7 +49,6 @@ class PH3DVertexing : public SubsysReco
   /// implemented in derived classes
   virtual int Process() = 0;
 
-  //SvtxClusterMap *_cluster_map;
   TrkrClusterContainer *_cluster_map;
 
   SvtxVertexMap *_vertex_map;

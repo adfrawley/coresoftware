@@ -117,6 +117,7 @@ int Fitter::processTrack(PHGenFit::Track* track, const bool save_to_evt_disp)
     return -1;
   }
 #endif
+
   try
   {
     _fitter->processTrack(fitTrack);
@@ -131,6 +132,7 @@ int Fitter::processTrack(PHGenFit::Track* track, const bool save_to_evt_disp)
     }
     return -1;
   }
+
 #if ROOT_VERSION_CODE >= ROOT_VERSION(6, 00, 0)
   try
   {
@@ -153,6 +155,7 @@ int Fitter::processTrack(PHGenFit::Track* track, const bool save_to_evt_disp)
     return -1;
   }
 #endif
+
   genfit::AbsTrackRep* rep = fitTrack->getCardinalRep();
   if (!fitTrack->getFitStatus(rep)->isFitConverged())
   {

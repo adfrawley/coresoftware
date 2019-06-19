@@ -248,6 +248,8 @@ int TpcClusterizer::process_event(PHCompositeNode* topNode)
       vector<int> phibinhi;
       vector<int> zbinlo;
       vector<int> zbinhi;
+      int phibin_last = -1;
+      int zbin_last = -1;
       // we want to search the hit list for local maxima in phi-z space and cluster around them      
       for (TrkrHitSet::ConstIterator hitr = hitrangei.first;
 	   hitr != hitrangei.second;
@@ -255,8 +257,13 @@ int TpcClusterizer::process_event(PHCompositeNode* topNode)
 	{
 	  int phibin = TpcDefs::getPad(hitr->first);
 	  int zbin = TpcDefs::getTBin(hitr->first);
+
+	  // this protects against occasional cases where there are two contiguous adc values that are the same - we do not want to cluster twice
+	  if(abs(phibin - phibin_last) < 2 && abs(zbin-zbin_last) < 2) continue;
+ 
 	  if(!is_local_maximum(phibin, zbin, adcval)) continue;
-	  
+	  phibin_last = phibin;
+	  zbin_last = zbin;
 	  int phiup= 0;
 	  int phidown = 0;
 	  int zup= 0;
@@ -325,8 +332,8 @@ int TpcClusterizer::process_event(PHCompositeNode* topNode)
 	  TrkrDefs::cluskey ckey = TpcDefs::genClusKey(hitset->getHitSetKey(), iclus);
 	  TrkrClusterv1 *clus = static_cast<TrkrClusterv1 *>((m_clusterlist->findOrAddCluster(ckey))->second);
 
-	  double phi_size = (double) (phibinhi[iclus] - phibinlo[iclus] + 1) * radius * layergeom->get_phistep();
-	  double z_size = (double) (zbinhi[iclus] - zbinlo[iclus] + 1) * layergeom->get_zstep();
+	  double phi_size = abs( (double) (phibinhi[iclus] - phibinlo[iclus] + 1) * radius * layergeom->get_phistep() );
+	  double z_size = abs( (double) (zbinhi[iclus] - zbinlo[iclus] + 1) * layergeom->get_zstep() );
 
 	  // Estimate the errors
 	  double dphi2_adc = 0.0;
@@ -366,6 +373,12 @@ int TpcClusterizer::process_event(PHCompositeNode* topNode)
 	  double z_err = sqrt(z_cov / (adc_sum * 0.14)) ;
 	  if(z_err == 0.0)
 	    z_err = layergeom->get_zstep() / sqrt(12.0);
+
+	  if(adc_sum > 1000)   // very large adc usually due to clusters with large secondary (delta) contributions, so err is meaningless
+	    {
+	      phi_err = phi_size  / sqrt(12.0);
+	      z_err = z_size  / sqrt(12.0);
+	    }
 
 	  // This corrects the bias introduced by the asymmetric SAMPA chip shaping - assumes 80 ns shaping time
 	  if (clusz < 0)

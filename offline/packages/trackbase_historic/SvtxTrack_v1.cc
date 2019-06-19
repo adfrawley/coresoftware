@@ -25,7 +25,6 @@ SvtxTrack_v1::SvtxTrack_v1()
   , _dca3d_z(NAN)
   , _dca3d_z_error(NAN)
   , _states()
-  , _cluster_ids()
   , _cluster_keys()
   , _cal_dphi()
   , _cal_deta()
@@ -68,15 +67,6 @@ SvtxTrack_v1& SvtxTrack_v1::operator=(const SvtxTrack_v1& track)
   {
     SvtxTrackState* state = iter->second;
     _states.insert(make_pair(state->get_pathlength(), state->clone()));
-  }
-
-  // copy over cluster ID set
-  _cluster_ids.clear();
-  for (ConstClusterIter iter = track.begin_clusters();
-       iter != track.end_clusters();
-       ++iter)
-  {
-    _cluster_ids.insert(*iter);
   }
 
   // copy over cluster key set
@@ -137,26 +127,17 @@ void SvtxTrack_v1::identify(std::ostream& os) const
 
   os << "(x,y,z) = (" << get_x() << "," << get_y() << "," << get_z() << ")" << endl;
 
-  if ( _cluster_ids.size() > 0 || _cluster_keys.size() > 0 )
-  {
-    os << "list of cluster IDs ";
-    for (SvtxTrack::ConstClusterIter iter = begin_clusters();
-         iter != end_clusters();
-         ++iter)
+  if ( _cluster_keys.size() > 0 )
     {
-      unsigned int cluster_id = *iter;
-      os << cluster_id << " ";
+      os << "list of cluster keys ";
+      for (SvtxTrack::ConstClusterKeyIter iter = begin_cluster_keys();
+	   iter != end_cluster_keys();
+	   ++iter)
+	{
+	  TrkrDefs::cluskey cluster_key = *iter;
+	  os << cluster_key << " ";
+	}
     }
-
-    os << "list of cluster keys ";
-    for (SvtxTrack::ConstClusterKeyIter iter = begin_cluster_keys();
-         iter != end_cluster_keys();
-         ++iter)
-    {
-      TrkrDefs::cluskey cluster_key = *iter;
-      os << cluster_key << " ";
-    }
-  }
   else
     os << " track has no clusters " << endl;
   

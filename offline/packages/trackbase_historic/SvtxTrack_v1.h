@@ -125,22 +125,6 @@ class SvtxTrack_v1 : public SvtxTrack
   //
   // associated cluster ids methods --------------------------------------------
   //
-
-  // needed by old tracking
-  void clear_clusters() { _cluster_ids.clear(); }
-  bool empty_clusters() const { return _cluster_ids.empty(); }
-  size_t size_clusters() const { return _cluster_ids.size(); }
-
-  void insert_cluster(unsigned int clusterid) { _cluster_ids.insert(clusterid); }
-  size_t erase_cluster(unsigned int clusterid) { return _cluster_ids.erase(clusterid); }
-  ConstClusterIter begin_clusters() const { return _cluster_ids.begin(); }
-  ConstClusterIter find_cluster(unsigned int clusterid) const { return _cluster_ids.find(clusterid); }
-  ConstClusterIter end_clusters() const { return _cluster_ids.end(); }
-  ClusterIter find_cluster(unsigned int clusterid) { return _cluster_ids.find(clusterid); }
-  ClusterIter begin_clusters() { return _cluster_ids.begin(); }
-  ClusterIter end_clusters() { return _cluster_ids.end(); }
-
-  // needed by new tracking
   void clear_cluster_keys() { _cluster_keys.clear(); }
   bool empty_cluster_keys() const { return _cluster_keys.empty(); }
   size_t size_cluster_keys() const { return _cluster_keys.size(); }
@@ -202,7 +186,6 @@ class SvtxTrack_v1 : public SvtxTrack
   StateMap _states;  //< path length => state object
 
   // cluster contents
-  ClusterSet _cluster_ids;
   ClusterKeySet _cluster_keys;
 
   // calorimeter matches

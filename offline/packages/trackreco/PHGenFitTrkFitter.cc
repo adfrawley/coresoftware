@@ -845,7 +845,6 @@ int PHGenFitTrkFitter::GetNodes(PHCompositeNode* topNode)
   }
 
   // Input Svtx Clusters
-  //_clustermap = findNode::getClass<SvtxClusterMap>(topNode, "SvtxClusterMap");
   _clustermap = findNode::getClass<TrkrClusterContainer>(topNode, "TRKR_CLUSTER");
   if (!_clustermap && _event < 2)
   {
@@ -955,7 +954,7 @@ std::shared_ptr<PHGenFit::Track> PHGenFitTrkFitter::ReFitTrack(PHCompositeNode* 
     }
   }
 
-  // Create measurements
+  // Create measurements vector
   std::vector<PHGenFit::Measurement*> measurements;
 
   /*!
@@ -979,6 +978,10 @@ std::shared_ptr<PHGenFit::Track> PHGenFitTrkFitter::ReFitTrack(PHCompositeNode* 
   /*!
 	 *
 	 */
+
+  // Start by adding the vertex point for this track
+  //================================
+
 #if _DEBUG_MODE_ == 1
   if (invertex
       //			and invertex->size_tracks() == 1
@@ -1045,8 +1048,11 @@ std::shared_ptr<PHGenFit::Track> PHGenFitTrkFitter::ReFitTrack(PHCompositeNode* 
   }
 #endif
 
+  // now we want to add the clusters associated with this track by PHGenFitTrackProp
+  //==========================================================
+
   // sort clusters with radius before fitting
-  if(Verbosity() > 20)   intrack->identify();
+  if(Verbosity() > 5)   intrack->identify();
   std::map<float, TrkrDefs::cluskey> m_r_cluster_id;
   for (auto iter = intrack->begin_cluster_keys();
        iter != intrack->end_cluster_keys(); ++iter)
@@ -1058,7 +1064,9 @@ std::shared_ptr<PHGenFit::Track> PHGenFitTrkFitter::ReFitTrack(PHCompositeNode* 
     float r = sqrt(x * x + y * y);
     m_r_cluster_id.insert(std::pair<float, TrkrDefs::cluskey>(r, cluster_key));
     int layer_out = TrkrDefs::getLayer(cluster_key);
-    if(Verbosity() > 20) cout << "    Layer " << layer_out << " cluster " << cluster_key << " radius " << r << endl;
+    if(Verbosity() > 5) cout << "    Layer " << layer_out << " cluster " << cluster_key << " radius " << r 
+			     << " x " << x << " y " << y << " z " << cluster->getPosition(2) 
+			     << endl;
   }
 
   for (auto iter = m_r_cluster_id.begin();
@@ -1090,10 +1098,7 @@ std::shared_ptr<PHGenFit::Track> PHGenFitTrkFitter::ReFitTrack(PHCompositeNode* 
     //TODO use u, v explicitly?
     TVector3 n(cluster->getPosition(0), cluster->getPosition(1), 0);
 
-    //------------------------------
-    // new
-
-    // Replace n for the silicon subsystems
+    // Replace the n vector for the silicon subsystems
 
     // get the trkrid
     unsigned int trkrid = TrkrDefs::getTrkrId(cluster_key);
@@ -1129,13 +1134,12 @@ std::shared_ptr<PHGenFit::Track> PHGenFitTrkFitter::ReFitTrack(PHCompositeNode* 
 	n.SetXYZ(hit_location[0], hit_location[1], 0);
 	n.RotateZ(geom->get_strip_phi_tilt());
       }
-    // end new
-    //-----------------
 
     PHGenFit::Measurement* meas = new PHGenFit::PlanarMeasurement(pos, n,
 								  cluster->getRPhiError(), cluster->getZError());
+    meas->set_cluster_key(cluster_key);
 
-    if(Verbosity() > 50)
+   if(Verbosity() > 50)
       {
 	cout << "Add meas layer " << layer << " cluskey " << cluster_key 
 	     << endl
@@ -1145,7 +1149,13 @@ std::shared_ptr<PHGenFit::Track> PHGenFitTrkFitter::ReFitTrack(PHCompositeNode* 
 	     << " ZErr " << cluster->getZError() 
 	     << endl;
       }
-      measurements.push_back(meas);
+    if(Verbosity() > 10)
+      {
+	TrkrDefs::cluskey ckey = meas->get_cluster_key();
+	cout << "    Added measurement for layer " << layer << " with meas cluster key: " << ckey << endl;
+      }
+
+   measurements.push_back(meas);
   }
 
   /*!
@@ -1173,24 +1183,27 @@ std::shared_ptr<PHGenFit::Track> PHGenFitTrkFitter::ReFitTrack(PHCompositeNode* 
   {
     if (Verbosity() >= 1)
       {
-	LogWarning("Track fitting failed");
-	cout << " track->getChisq() " << track->get_chi2() << " get_ndf " << track->get_ndf() 
-	     << " mom.X " << track->get_mom().X() 
-	     << " mom.Y " << track->get_mom().Y() 
-	     << " mom.Z " << track->get_mom().Z() 
-	     << endl;
+	if(measurements.size() > 20)
+	  {
+	    LogWarning("  Track fitting failed");
+	    cout  << "   track id " << intrack->get_id() << " measurements size = " << measurements.size() << endl;
+	  }
       }
     //delete track;
     return NULL;
   }
 
-  if(Verbosity() > 50)
-    cout << " track->getChisq() " << track->get_chi2() << " get_ndf " << track->get_ndf() 
-	 << " mom.X " << track->get_mom().X() 
-	 << " mom.Y " << track->get_mom().Y() 
-	 << " mom.Z " << track->get_mom().Z() 
-	 << endl;
-  
+  if(Verbosity() >=1)
+    if(measurements.size() > 20)  // some secondary tracks are too short to fit, so failure is guaranteed and track is not a valid pointer
+      {
+	cout  << "   Track fitted:  track id " << intrack->get_id() << " measurements size = " << measurements.size() << endl;
+	cout <<  "    track->getChisq() " << track->get_chi2() << " get_ndf " << track->get_ndf() 
+	     << " mom.X " << track->get_mom().X() 
+	     << " mom.Y " << track->get_mom().Y() 
+	     << " mom.Z " << track->get_mom().Z() 
+	     << endl;
+      }
+
   return track;
 }
 
@@ -1474,66 +1487,6 @@ std::shared_ptr<SvtxTrack> PHGenFitTrkFitter::MakeSvtxTrack(const SvtxTrack* svt
       out_track->set_error(i, j, cov[i][j]);
     }
   }
-
-  //	for (SvtxTrack::ConstClusterIter iter = svtx_track->begin_clusters();
-  //			iter != svtx_track->end_clusters(); ++iter) {
-  //		unsigned int cluster_id = *iter;
-  //		SvtxCluster* cluster = _clustermap->get(cluster_id);
-  //		if (!cluster) {
-  //			LogError("No cluster Found!");
-  //			continue;
-  //		}
-  //		//cluster->identify; //DEBUG
-  //
-  //		//unsigned int l = cluster->get_layer();
-  //
-  //		TVector3 pos(cluster->get_x(), cluster->get_y(), cluster->get_z());
-  //
-  //		double radius = pos.Pt();
-  //
-  //		std::shared_ptr<genfit::MeasuredStateOnPlane> gf_state = NULL;
-  //		try {
-  //			gf_state = std::shared_ptr < genfit::MeasuredStateOnPlane
-  //					> (phgf_track->extrapolateToCylinder(radius,
-  //							TVector3(0, 0, 0), TVector3(0, 0, 1), 0));
-  //		} catch (...) {
-  //			if (Verbosity() >= 2)
-  //				LogWarning("Exrapolation failed!");
-  //		}
-  //		if (!gf_state) {
-  //			if (Verbosity() > 1)
-  //				LogWarning("Exrapolation failed!");
-  //			continue;
-  //		}
-  //
-  //		//SvtxTrackState* state = new SvtxTrackState_v1(radius);
-  //		std::shared_ptr<SvtxTrackState> state = std::shared_ptr<SvtxTrackState> (new SvtxTrackState_v1(radius));
-  //		state->set_x(gf_state->getPos().x());
-  //		state->set_y(gf_state->getPos().y());
-  //		state->set_z(gf_state->getPos().z());
-  //
-  //		state->set_px(gf_state->getMom().x());
-  //		state->set_py(gf_state->getMom().y());
-  //		state->set_pz(gf_state->getMom().z());
-  //
-  //		//gf_state->getCov().Print();
-  //
-  //		for (int i = 0; i < 6; i++) {
-  //			for (int j = i; j < 6; j++) {
-  //				state->set_error(i, j, gf_state->get6DCov()[i][j]);
-  //			}
-  //		}
-  //
-  //		out_track->insert_state(state.get());
-  //
-  //#ifdef _DEBUG_
-  //		cout
-  //		<<__LINE__
-  //		<<": " << radius <<" => "
-  //		<<sqrt(state->get_x()*state->get_x() + state->get_y()*state->get_y())
-  //		<<endl;
-  //#endif
-  //	}
 
 #ifdef _DEBUG_
   cout << __LINE__ << endl;

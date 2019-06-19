@@ -50,7 +50,6 @@ int PH3DVertexing::GetNodes(PHCompositeNode* topNode)
   // Get Objects off of the Node Tree
   //---------------------------------
 
-  //  _cluster_map = findNode::getClass<SvtxClusterMap>(topNode, "SvtxClusterMap");
   _cluster_map = findNode::getClass<TrkrClusterContainer>(topNode, "TRKR_CLUSTERS");
   if (!_cluster_map)
   {

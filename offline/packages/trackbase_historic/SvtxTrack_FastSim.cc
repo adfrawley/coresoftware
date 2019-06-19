@@ -41,17 +41,15 @@ void SvtxTrack_FastSim::identify(std::ostream& os) const
 
   os << "(x,y,z) = (" << get_x() << "," << get_y() << "," << get_z() << ")" << endl;
 
-  if (!empty_clusters())
-  {
-    os << "clusters: ";
-    for (SvtxTrack::ConstClusterIter iter = begin_clusters();
-         iter != end_clusters();
-         ++iter)
+
+  os << "clusters: ";
+  for (SvtxTrack::ConstClusterKeyIter iter = begin_cluster_keys();
+       iter != end_cluster_keys();
+       ++iter)
     {
-      unsigned int cluster_id = *iter;
-      os << cluster_id << " ";
+      TrkrDefs::cluskey cluster_key = *iter;
+      os << cluster_key << " ";
     }
-  }
   os << endl;
 
   return;

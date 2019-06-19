@@ -1252,7 +1252,7 @@ void TrkrEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
             quality = track->get_quality();
             chisq = track->get_chisq();
             ndf = track->get_ndf();
-            nhits = track->size_clusters();
+            nhits = track->size_cluster_keys();
             int maps[_nlayers_maps];
             int intt[_nlayers_intt];
             int tpc[_nlayers_tpc];
@@ -1449,7 +1449,7 @@ void TrkrEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         float quality = track->get_quality();
         float chisq = track->get_chisq();
         float ndf = track->get_ndf();
-        float nhits = track->size_clusters();
+        float nhits = track->size_cluster_keys();
         unsigned int layers = 0x0;
         int maps[_nlayers_maps];
         int intt[_nlayers_intt];

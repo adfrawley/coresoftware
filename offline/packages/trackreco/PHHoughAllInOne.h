@@ -41,8 +41,6 @@
 
 // forward declarations
 class PHCompositeNode;
-//class SvtxClusterMap;
-//class SvtxCluster;
 class TrkrClusterContainer;
 class TrkrCluster;
 class SvtxTrackMap;
@@ -816,7 +814,6 @@ class PHHoughAllInOne : public PHTrackSeeding
       const bool use_fitted_state_once = false);
 
   //!
-  //PHGenFit::Measurement* SvtxClusterToPHGenFitMeasurement(const SvtxCluster* cluster);
   PHGenFit::Measurement* TrkrClusterToPHGenFitMeasurement(const TrkrCluster* cluster);
 
   //! TrackPropPatRec Call.
@@ -928,19 +925,9 @@ class PHHoughAllInOne : public PHTrackSeeding
 
   // node pointers
   BbcVertexMap* _bbc_vertexes;
-  //SvtxClusterMap* _cluster_map;
-  //SvtxTrackMap* _track_map;
-  //SvtxVertexMap* _vertex_map;
-
-  //nodes to get norm vector
-  //SvtxHitMap* _svtxhitsmap;
 
   int* _hit_used_map;
   int _hit_used_map_size;
-
-  //PHG4CellContainer* _cells_svtx;
-  //PHG4CellContainer* _cells_intt;
-  //PHG4CellContainer* _cells_maps;
 
   PHG4CylinderGeomContainer* _geom_container_intt;
   PHG4CylinderGeomContainer* _geom_container_maps;

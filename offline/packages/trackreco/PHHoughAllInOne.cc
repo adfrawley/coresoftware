@@ -16,11 +16,6 @@
 #include <HelixHough/VertexFinder.h>
 
 // trackbase_historic includes
-//#include <trackbase_historic/SvtxCluster.h>
-//#include <trackbase_historic/SvtxClusterMap.h>
-//#include <trackbase_historic/SvtxHitMap.h>
-//#include <trackbase_historic/SvtxHit_v1.h>
-
 #include <trackbase_historic/SvtxTrack.h>
 #include <trackbase_historic/SvtxTrackMap.h>
 #include <trackbase_historic/SvtxTrackMap_v1.h>
@@ -1368,8 +1363,7 @@ int PHHoughAllInOne::translate_input()
     nhits[i] = 0;
     nhits_all[i] = 0;
   }
-  //for (SvtxClusterMap::Iter iter = _cluster_map->begin();
-  //    iter != _cluster_map->end(); ++iter)
+
   TrkrClusterContainer::ConstRange clusrange = _cluster_map->getClusters();
   for(TrkrClusterContainer::ConstIterator iter = clusrange.first; iter != clusrange.second; ++iter)
     {      
@@ -3763,9 +3757,6 @@ int PHHoughAllInOne::BuildLayerZPhiHitMap()
 {
   _layer_thetaID_phiID_cluserID.clear();
 
-  //for(SimpleHit3D cluster : _clusters){
-  //for (SvtxClusterMap::Iter iter = _cluster_map->begin();
-  //    iter != _cluster_map->end(); ++iter)
   TrkrClusterContainer::ConstRange clusrange = _cluster_map->getClusters();
   for(TrkrClusterContainer::ConstIterator iter = clusrange.first; iter != clusrange.second; ++iter)
     {      

@@ -102,7 +102,7 @@ int PHTruthTrackSeeding::Process()
 	      int particle_id = phg4hit->get_trkid();
 
 	      TrkClustersMap::iterator it = m_trackID_clusters.find(particle_id);
-	      
+	      //cout << " clusterID " << cluskey << " hitsetkey " << hitsetkey << " hitkey " << hitkey << " g4hitkey " << g4hitkey << " particle_id " << particle_id << endl;	      
 	      if (it != m_trackID_clusters.end())
 		{
 		  it->second.insert(cluster);
@@ -170,6 +170,8 @@ int PHTruthTrackSeeding::Process()
 				  cluster->getX() * cluster->getX() + cluster->getY() * cluster->getY());
 	      cout << "       cluster ID: "
 		   << cluster->getClusKey() << ", cluster radius: " << radius
+		   << " x " << cluster->getX() << " y " << cluster->getY() << " z " << cluster->getZ()
+		   << " adc " << cluster->getAdc()
 		   << endl;
 	    }
 	}
