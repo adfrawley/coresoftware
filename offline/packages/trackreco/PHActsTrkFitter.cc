@@ -70,7 +70,7 @@
 #include "Acts/Surfaces/PlaneSurface.hpp"
 #include "Acts/Geometry/TrackingGeometry.hpp"
 #include "ACTFW/Detector/IBaseDetector.hpp"
-#include "ACTFW/Io/Root/RootMaterialDecorator.hpp"
+#include "ACTFW/Plugins/Root/RootMaterialDecorator.hpp"
 
 #include <Acts/Geometry/GeometryContext.hpp>
 #include <Acts/Geometry/TrackingGeometry.hpp>
