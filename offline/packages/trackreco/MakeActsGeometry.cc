@@ -88,7 +88,8 @@ MakeActsGeometry::MakeActsGeometry(const string &name)
   , m_geoManager(nullptr)
   , m_minSurfZ(0.0)
   , m_maxSurfZ(105.5)
-  , m_nSurfZ(11)
+    //, m_nSurfZ(11)
+  , m_nSurfZ(1)
   , m_nSurfPhi(10)
   , m_verbosity(0)
 {
@@ -649,6 +650,7 @@ void MakeActsGeometry::makeMvtxMapPairs(TrackingVolumePtr &mvtxVolume)
 
 Surface MakeActsGeometry::GetTpcSurfaceFromCoords(TrkrDefs::hitsetkey hitsetkey, std::vector<double> &world)
 {
+
   std::map<TrkrDefs::hitsetkey, std::vector<Surface>>::iterator mapIter;
   mapIter = m_clusterSurfaceMapTpcEdit.find(hitsetkey);
   
@@ -660,20 +662,36 @@ Surface MakeActsGeometry::GetTpcSurfaceFromCoords(TrkrDefs::hitsetkey hitsetkey,
 
   double world_phi = atan2(world[1], world[0]);
   double world_z = world[2];
-  
+
   std::vector<Surface> surf_vec = mapIter->second;
+
+  /*
+  unsigned int layer = TrkrDefs::getLayer(hitsetkey);
+  if(layer == 30)
+    {
+      cout << endl << "Enter GetTpcSurfaceFromCoords with hitsetkey " << hitsetkey  << " layer " << layer << endl;
+      cout << "  surf_vec size " << surf_vec.size() << " world_phi " << world_phi*180.0/3.14159 << " world_z " << world_z << endl;  
+    }
+  */
+
   unsigned int surf_index = 999;
   for(unsigned int i=0;i<surf_vec.size(); ++i)
     {
       Surface this_surf = surf_vec[i];
-      /*
-      cout << endl << "Stream of surface number " << i << endl;
-      this_surf->toStream(m_geoCtxt, std::cout);   cout << endl;
-  */
+
       auto vec3d = this_surf->center(m_geoCtxt);
       std::vector<double> surf_center = {vec3d(0) / 10.0, vec3d(1) / 10.0, vec3d(2) / 10.0};  // convert from mm to cm
       double surf_phi = atan2(surf_center[1], surf_center[0]);
       double surf_z = surf_center[2];
+
+      /*
+      if(layer == 30)
+	{
+	  cout << "  TPC layer " << layer  << " surface number " << i << " surf phi " << surf_phi * 180.0/3.14159 << " surf Z " << surf_z << endl;
+	  //this_surf->toStream(m_geoCtxt, std::cout);   cout << endl;
+	}
+      */
+
       if( (world_phi > surf_phi - m_surfStepPhi / 2.0 && world_phi < surf_phi + m_surfStepPhi / 2.0 ) &&
 	  (world_z > surf_z -m_surfStepZ / 2.0 && world_z < surf_z + m_surfStepZ / 2.0) )
 	{
@@ -798,7 +816,7 @@ TrkrDefs::hitsetkey MakeActsGeometry::GetInttHitSetKeyFromCoords(unsigned int la
 void MakeActsGeometry::MakeTGeoNodeMap(PHCompositeNode *topNode)
 {
   // This is just a diagnostic method
-  // it lets you list all of the nodes by setting print_sensors = true
+  // it lets you list all of the nodes by setting print_sensor_paths = true
 
   if (!m_geoManager)
   {
@@ -844,7 +862,7 @@ void MakeActsGeometry::MakeTGeoNodeMap(PHCompositeNode *topNode)
     else
       continue;
 
-    bool print_sensor_paths = false;  // normally false
+    bool print_sensor_paths = false;  // normally false, only for diagnostics
     if (print_sensor_paths)
     {
       // Descends the node tree to find the active silicon nodes - used for information only
