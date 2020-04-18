@@ -88,8 +88,7 @@ MakeActsGeometry::MakeActsGeometry(const string &name)
   , m_geoManager(nullptr)
   , m_minSurfZ(0.0)
   , m_maxSurfZ(105.5)
-    //, m_nSurfZ(11)
-  , m_nSurfZ(1)
+  , m_nSurfZ(11)
   , m_nSurfPhi(10)
   , m_verbosity(0)
 {
@@ -213,8 +212,9 @@ void MakeActsGeometry::AddActsTpcSurfaces( TGeoVolume *tpc_gas_vol)
   for(unsigned int ilayer = 0; ilayer < m_nTpcLayers; ++ilayer)
     {
       // make a box for this layer
+
       char bname[500];
-      sprintf(bname,"tpc_gas_measurement_%i",ilayer);
+      sprintf(bname,"tpc_gas_measurement_%u",ilayer);
 
       // Because we use a box, not a section of a cylinder, we need this to prevent overlaps
       // set the nominal r*phi dimension of the box so they just touch at the inner edge when placed 

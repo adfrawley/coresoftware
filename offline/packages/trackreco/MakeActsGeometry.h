@@ -104,6 +104,9 @@ class MakeActsGeometry
   Surface GetTpcSurfaceFromCoords(TrkrDefs::hitsetkey hitsetkey, 
     std::vector<double> &world);
 
+  void setNSurfZ(const unsigned int nz) {m_nSurfZ = nz;}
+  void setNSurfPhi(const unsigned int nphi) {m_nSurfPhi = nphi;}
+
   /// These are public so that std::reference_wrapper can access them
   /// in the KalmanFitterOptions
   Acts::GeometryContext  m_geoCtxt;  

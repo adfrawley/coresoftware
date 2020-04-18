@@ -68,7 +68,7 @@ int PHActsTrkFitter::Process()
 
   fitCfg.fit = FW::TrkrClusterFittingAlgorithm::makeFitterFunction(m_tGeometry->tGeometry,
 								   m_tGeometry->magField,
-                                                                   Acts::Logging::VERBOSE);
+								    Acts::Logging::VERBOSE);
 
   std::vector<ActsTrack>::iterator trackIter;
 
