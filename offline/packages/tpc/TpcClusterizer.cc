@@ -83,37 +83,32 @@ bool TpcClusterizer::is_local_maximum(int phibin, int zbin, std::vector<std::vec
   return retval;
 }
 
-bool TpcClusterizer::is_in_sector_boundary(int phibin, int sector, PHG4CylinderCellGeom *layergeom)
+bool TpcClusterizer::is_in_sector_boundary_fiducial(double phi, int sector, PHG4CylinderCellGeom *layergeom)
 {
   bool reject_it = false;
 
-  // sector boundaries occur every 1/12 of the full phi bin range  
-  int PhiBins = layergeom->get_phibins();
-  int PhiBinsSector = PhiBins/12;
+  // Sector boundaries are at 2*pi/12 intervals
+  double PhiStep = 2.0* M_PI / 12.0;
+  double  sector_lo = -M_PI + sector * PhiStep;
+  double  sector_hi = sector_lo + PhiStep;
 
   double radius = layergeom->get_radius();
-  double PhiBinSize = 2.0* radius * M_PI / (double) PhiBins;
+  double fiducial_phi = SectorFiducialCut / radius;
 
-  // sector starts where?
-  int sector_lo = sector * PhiBinsSector;
-  int sector_hi = sector_lo + PhiBinsSector - 1;
-
-  int sector_fiducial_bins = (int) (SectorFiducialCut / PhiBinSize);
-
-  if(phibin < sector_lo + sector_fiducial_bins || phibin > sector_hi - sector_fiducial_bins)
+  if( (phi < sector_lo + fiducial_phi) || (phi > sector_hi - fiducial_phi) )
     {
       reject_it = true;
+
       /*
       int layer = layergeom->get_layer();
-      cout << " local maximum is in sector fiducial boundary: layer " << layer << " radius " << radius << " sector " << sector 
-      << " PhiBins " << PhiBins << " sector_fiducial_bins " << sector_fiducial_bins
-      << " PhiBinSize " << PhiBinSize << " phibin " << phibin << " sector_lo " << sector_lo << " sector_hi " << sector_hi << endl;  
+      cout << " cluster is in sector fiducial boundary: layer " << layer << " radius " << radius << " sector " << sector 
+	   << " PhiStep " << PhiStep << " cluster phi " << phi << " fiducial_phi " << fiducial_phi
+      << " sector_lo " << sector_lo << " sector_hi " << sector_hi << endl;  
       */
     }
 
   return reject_it;
 }
-
 
 void TpcClusterizer::get_cluster(int phibin, int zbin, int &phiup, int &phidown, int &zup, int &zdown, std::vector<std::vector<double>> &adcval)
 {
@@ -383,11 +378,6 @@ int TpcClusterizer::process_event(PHCompositeNode *topNode)
 	}
       if(duplicate) continue;
 
-      // Eliminate local maxima that fall within the fiducial boundary of a sector
-      // This does not prevent full clustering of all accepted local maxima, just eliminates clusters **centered** outside the sector fiducial boundary
-      if(is_in_sector_boundary(phibin, sector, layergeom))
-	continue;
-
       phibin_last = phibin;
       zbin_last = zbin;
 
@@ -412,12 +402,6 @@ int TpcClusterizer::process_event(PHCompositeNode *topNode)
       // Run a duplicate cluster check here
       // Can get clusters that are formed around different maxima that are separated by more than NSearch bins in z and/or phi
       // 
-
-
-
-
-
-
 
       // Add this cluster to a vector of clusters for later analysis
       phibinlo.push_back(phibin - phidown);
@@ -477,6 +461,12 @@ int TpcClusterizer::process_event(PHCompositeNode *topNode)
       // This is the global position
       double clusphi = phi_sum / adc_sum;
       double clusz = zsum / adc_sum;
+
+      // reject this cluster if it's centroid falls in the sector fiducial boundary
+      if(is_in_sector_boundary_fiducial(clusphi, sector, layergeom))
+	{
+	  continue;
+	}
 
       // create the cluster entry directly in the node tree
       TrkrDefs::cluskey ckey = TpcDefs::genClusKey(hitset->getHitSetKey(), iclus);

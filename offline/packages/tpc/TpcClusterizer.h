@@ -28,7 +28,7 @@ class TpcClusterizer : public SubsysReco
 
  private:
   bool is_local_maximum(int phi, int z, std::vector<std::vector<double>> &adcval);
-  bool is_in_sector_boundary(int phibin, int sector, PHG4CylinderCellGeom *layergeom);
+  bool is_in_sector_boundary_fiducial(double phi, int sector, PHG4CylinderCellGeom *layergeom);
   void get_cluster(int phibin, int zbin, int &phiup, int &phidown, int &zup, int &zdown, std::vector<std::vector<double>> &adcval);
 
   TrkrHitSetContainer *m_hits;

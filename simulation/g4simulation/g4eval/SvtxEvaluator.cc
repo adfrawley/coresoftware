@@ -161,7 +161,7 @@ int SvtxEvaluator::Init(PHCompositeNode* topNode)
                                                    "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps");
 
   if (_do_g4cluster_eval) _ntp_g4cluster = new TNtuple("ntp_g4cluster", "g4cluster => max truth",
-						       "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gtrackID:gflavor:gembed:gprimary:g4phisize:g4zsize:nreco:x:y:z:r:phi:eta:ex:ey:ez:ephi:phisize:zsize:adc"); 
+						       "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gtrackID:gflavor:gembed:gprimary:g4phisize:g4zsize:nreco:sector_change:side_change:sector_side_same:x:y:z:r:phi:eta:ex:ey:ez:ephi:phisize:zsize:adc"); 
                                                        
   if (_do_gtrack_eval) _ntp_gtrack = new TNtuple("ntp_gtrack", "g4particle => best svtxtrack",
                                                  "event:seed:gntracks:gtrackID:gflavor:gnhits:gnmaps:gnintt:"
@@ -2140,6 +2140,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	      float phisize = NAN;
 	      float zsize = NAN;
 	      float adc = NAN;
+	      float sector_change = NAN;
+	      float side_change = NAN;
+	      float sector_side_same = NAN;
 
 	      TrkrDefs::cluskey reco_cluskey = 0;
 	      float nreco = 0;
@@ -2245,15 +2248,25 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 		      reco_cluskey = 0;
 		    }
 
+		  if(layer > 6)
+		    {
+		      if(sector == 999)
+			sector_change = 1;
+		      else if(side == 999)
+			side_change = 1;
+		      else
+			sector_side_same = 1;
+		    }
+
 		  if(Verbosity() > 0)
 		    if(gtrackID >= 0 && layer > 6)  
 		      {
 			cout << "        best  reco_cluskey = " << reco_cluskey << endl;
-			if(sector == 999) 
+			if(sector_change == 1) 
 			  cout << "        ***** sector change!" << endl;
-			if(side == 999)
+			if(side_change == 1)
 			  cout << "        ***** side change!" << endl;
-			if( side != 999 && sector != 999)
+			if( sector_side_same == 1)
 			  cout << "     ***** NO sector or side change" << endl;
 		      }
 		}
@@ -2305,6 +2318,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 					g4phisize,
 					g4zsize,
 					nreco,
+					sector_change,
+					side_change,
+					sector_side_same,
 					x,
 					y,
 					z,
