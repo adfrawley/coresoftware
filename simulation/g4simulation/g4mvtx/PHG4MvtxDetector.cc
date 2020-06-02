@@ -276,7 +276,8 @@ int PHG4MvtxDetector::ConstructMvtx_Layer(int layer, G4AssemblyVolume* av_ITSUSt
 
     if (Verbosity() > 0)
     {
-      cout << "phi_offset = " << phi_offset << " iphi " << iphi << " phi_rotation = " << phi_rotation << " phitilt " << phitilt << endl;
+      cout << "Stave phi_offset = " << phi_offset << " iphi " << iphi << " phi_rotation = " << phi_rotation << " phitilt " << phitilt 
+	   << " total phi rot " << phi_rotation + phi_offset + phitilt << endl;
     }
     // It  is first rotated in phi by the azimuthal angle phi_rotation, plus the 90 degrees needed to point the face of the sensor  at the origin,  plus the tilt (if a tilt is appropriate)
 
@@ -290,7 +291,7 @@ int PHG4MvtxDetector::ConstructMvtx_Layer(int layer, G4AssemblyVolume* av_ITSUSt
 
     if (Verbosity() > 0)
     {
-      cout << " iphi " << iphi << " phi_rotation " << phi_rotation
+      cout << " Stave iphi " << iphi << " phi_rotation " << phi_rotation
            << " x " << layer_nominal_radius * cos(phi_rotation)
            << " y " << layer_nominal_radius * sin(phi_rotation)
            << " z " << z_location

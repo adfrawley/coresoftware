@@ -328,7 +328,14 @@ void MvtxClusterizer::ClusterMvtx(PHCompositeNode *topNode)
                                                                      chip,
                                                                      layergeom->get_local_coords_from_pixel(row,col)
                                                                     );
-	    //cout << "   new: world coords: X " << world_coords.X() << " Y " << world_coords.Y() << " Z " << world_coords.Z() << endl;
+
+	    /*
+	    TVector3 local_coords = layergeom->get_local_coords_from_pixel(row,col);
+	    TVector3 check_local_coords =  layergeom->get_local_from_world_coords(stave, 0, 0, chip, world_coords);
+	    cout << "  : local coords: X " << local_coords.X() << " Y " << local_coords.Y() << " Z " << local_coords.Z() << endl;
+	    cout << "  : world coords: X " << world_coords.X() << " Y " << world_coords.Y() << " Z " << world_coords.Z() << endl;
+	    cout << "  : check_local coords: X " << check_local_coords.X() << " Y " << check_local_coords.Y() << " Z " << check_local_coords.Z() << endl;
+	    */
 
 	    // find the center of the pixel in local coords
 	    xsum += world_coords.X();
@@ -414,14 +421,14 @@ void MvtxClusterizer::ClusterMvtx(PHCompositeNode *topNode)
 	ERR[0][1] = 0.0;
 	ERR[0][2] = 0.0;
 	ERR[1][0] = 0.0;
-  ERR[1][1] = square( phierror );
+	ERR[1][1] = square( phierror );
 	ERR[1][2] = 0.0;
 	ERR[2][0] = 0.0;
 	ERR[2][1] = 0.0;
-  ERR[2][2] = square( zerror );
+	ERR[2][2] = square( zerror );
 
-	if(Verbosity() > 2)
-	  cout << " Local ERR = " << ERR[0][0] << "  " << ERR[1][1] << "  " << ERR[2][2] << endl;
+	if(Verbosity() > 0)
+	  cout << " layer " << layer << " Local ERR = " << ERR[0][0] << "  " << ERR[1][1] << "  " << ERR[2][2] << endl;
 
 	TMatrixF ROT(3, 3);
 	ROT[0][0] = cos(ladderphi);

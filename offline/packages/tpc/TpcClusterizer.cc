@@ -560,6 +560,9 @@ int TpcClusterizer::process_event(PHCompositeNode *topNode)
       ERR[2][1] = 0.0;
       ERR[2][2] = z_err * z_err;
 
+	if(Verbosity() > 0)
+	  cout << " layer " << layer << " Local ERR = " << ERR[0][0] << "  " << ERR[1][1] << "  " << ERR[2][2] << endl;
+
       TMatrixF ROT(3, 3);
       ROT[0][0] = cos(clusphi);
       ROT[0][1] = -sin(clusphi);
@@ -618,7 +621,7 @@ int TpcClusterizer::process_event(PHCompositeNode *topNode)
     }  // end loop over clusters for this hitset
   }    // end loop over hitsets
 
-  if (Verbosity() > 100)
+  if (Verbosity() > 0)
   {
     cout << "Dump clusters after TpcClusterizer" << endl;
     m_clusterlist->identify();

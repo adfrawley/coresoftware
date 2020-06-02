@@ -468,7 +468,7 @@ void InttClusterizer::ClusterLadderCells(PHCompositeNode* topNode)
 	geom->find_segment_center(ladder_z_index,
 				  ladder_phi_index,
 				  ladder_location);
-  const double ladderphi = atan2(ladder_location[1], ladder_location[0]) + geom->get_strip_phi_tilt();
+	const double ladderphi = atan2(ladder_location[1], ladder_location[0]) + geom->get_strip_phi_tilt();
 
 	// Fill the cluster fields
 	clus->setAdc(clus_adc);
@@ -489,15 +489,18 @@ void InttClusterizer::ClusterLadderCells(PHCompositeNode* topNode)
 	DIM[2][2] = square(0.5 * zsize);
 		
 	TMatrixF ERR(3, 3);
-  ERR[0][0] = square(thickness * invsqrt12);
+	ERR[0][0] = square(thickness * invsqrt12);
 	ERR[0][1] = 0.0;
 	ERR[0][2] = 0.0;
 	ERR[1][0] = 0.0;
-  ERR[1][1] = square(phierror);
+	ERR[1][1] = square(phierror);
 	ERR[1][2] = 0.0;
 	ERR[2][0] = 0.0;
 	ERR[2][1] = 0.0;
-  ERR[2][2] = square(zerror);
+	ERR[2][2] = square(zerror);
+
+	if(Verbosity() > 0)
+	  cout << " layer " << layer << " Local ERR = " << ERR[0][0] << "  " << ERR[1][1] << "  " << ERR[2][2] << endl;
 
 	TMatrixF ROT(3, 3);
 	ROT[0][0] = cos(ladderphi);

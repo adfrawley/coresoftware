@@ -176,7 +176,6 @@ int PHActsSourceLinks::process_event(PHCompositeNode *topNode)
     /// for this cluster
     /// ====================================================
 
-
     /// local and localErr contain the position and covariance
     /// matrix in local coords
     if (Verbosity() > 0)
@@ -341,9 +340,9 @@ Surface PHActsSourceLinks::getTpcLocalCoords(double (&local2D)[2],
     std::cout << "cluster readback (mm):  x " << x*Acts::UnitConstants::cm <<  " y " << y*Acts::UnitConstants::cm << " z " << z*Acts::UnitConstants::cm 
 	      << " radius " << radius << std::endl;
     std::cout << " cluster phi " << clusPhi << " cluster z " << zTpc << " r*clusphi " << rClusPhi << std::endl;
-    std::cout << " local phi " << clusPhi - surfPhiCenter
-              << " local rphi " << rClusPhi-surfRphiCenter 
- 	      << " local z " << zTpc - surfZCenter  << std::endl;
+    std::cout << " our local phi " << clusPhi - surfPhiCenter
+              << " our local rphi " << rClusPhi-surfRphiCenter 
+ 	      << " our local z " << zTpc - surfZCenter  << std::endl;
       std::cout << " acts local : " <<localPos(0) <<"  "<<localPos(1) << std::endl;
   }
 
@@ -457,11 +456,11 @@ Surface PHActsSourceLinks::getInttLocalCoords(double (&local2D)[2],
     layerGeom->find_segment_center(ladderZId, ladderPhiId, segcent);
     std::cout << "Acts surface normal vector: " << normal(0) << ", "
 	      << normal(1) << ", " <<normal(2)<<std::endl;
-    std::cout << "   segment center: " << segcent[0]
+    std::cout << "   our segment center: " << segcent[0]
               << " " << segcent[1] << " " << segcent[2] << std::endl;
     std::cout << "   world; " << world[0] << " " << world[1]
               << " " << world[2] << std::endl;
-    std::cout << "   local; " << local[0] << " " << local[1]
+    std::cout << "   our local; " << local[0] << " " << local[1]
               << " " << local[2] << std::endl;
     std::cout << " acts local "<<localPos(0)<<"  "<<localPos(1)<<std::endl;
   }
@@ -570,17 +569,24 @@ Surface PHActsSourceLinks::getMvtxLocalCoords(double (&local2D)[2],
   
   if (Verbosity() > 0)
   {
+    TVector3 world_check;
+    world_check = layerGeom->get_world_from_local_coords(staveId, 0, 0, chipId, local);
+    std::cout << "   world_check; " << world_check[0] << " "
+              << world_check[1] << " " << world_check[2] << std::endl;
     double segcent[3];
     std::cout << "Acts normal vector: "<<normal(0) << ", " << normal(1) 
 	      << ", " << normal(2) << std::endl;
     layerGeom->find_sensor_center(staveId, 0, 0, chipId, segcent);
-    std::cout << "   segment center: " << segcent[0] << " "
+    std::cout << "   our segment center: " << segcent[0] << " "
               << segcent[1] << " " << segcent[2] << std::endl;
     std::cout << "   world; " << world[0] << " "
               << world[1] << " " << world[2] << std::endl;
-    std::cout << "   our local; " << local[0] << " "
+    std::cout << "   our local (cm): " << local[0] << " "
               << local[1] << " " << local[2] << std::endl;
-    std::cout<<" acts local "<<localPos(0)<<"  "<<localPos(1)<<std::endl;
+    std::cout<<" acts local (mm): "<<localPos(0)<<"  "<<localPos(1)<<std::endl;
+    std::cout << " acts local - our local (mm) " << localPos[0] - 10.*local[0]
+	      << "  " <<  localPos[1] - 10.*local[2]
+	      << std::endl;
   }
 
   // transform covariance matrix back to local coords on chip
@@ -782,6 +788,8 @@ TMatrixD PHActsSourceLinks::getMvtxCovarLocal(const unsigned int layer, const un
 
   if (Verbosity() > 0)
   {
+    std::cout.setf(std::ios::fixed);
+    std::cout << std::setprecision(10);
     for (int i = 0; i < 3; ++i)
     {
       for (int j = 0; j < 3; ++j)
@@ -810,7 +818,7 @@ TMatrixD PHActsSourceLinks::getInttCovarLocal(const unsigned int layer, const un
 
   localErr = transformCovarToLocal(ladderPhi, worldErr);
 
-  if (Verbosity() > 10)
+  if (Verbosity() > 0)
   {
     for (int i = 0; i < 3; ++i)
     {

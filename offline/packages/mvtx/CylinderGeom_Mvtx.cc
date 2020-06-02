@@ -76,6 +76,8 @@ CylinderGeom_Mvtx::get_local_from_world_coords(int stave, int half_stave, int mo
   double stave_phi = stave_phi_0 + stave_phi_step * (double) stave;
   double stave_phi_offset = M_PI / 2.0;  // stave initially points so that sensor faces upward in y
 
+  //cout << " stave_phi_0 " << stave_phi_0 << " stave_phi_step " << stave_phi_step << " stave_phi_tilt " << stave_phi_tilt << " stave_phi_offset " << stave_phi_offset << endl;
+
   // Starting from its location in the world
   TVector3 res = world_location;
 
@@ -112,6 +114,8 @@ CylinderGeom_Mvtx::get_local_from_world_coords(int stave, int half_stave, int mo
   res -= tr2;
 
   // transform location in chip to location in sensor
+  // add fudge factor
+  //TVector3 tr1(loc_sensor_in_chip[0]+0.0038720,
   TVector3 tr1(loc_sensor_in_chip[0],
                loc_sensor_in_chip[1],
                loc_sensor_in_chip[2]);
@@ -150,6 +154,8 @@ CylinderGeom_Mvtx::get_world_from_local_coords(int stave, int half_stave, int mo
   TVector3 res = sensor_local;
 
   // transform sensor location to location in chip
+  // add a fudge factor of 0.038720 to x
+  //TVector3 tr1(loc_sensor_in_chip[0]+0.0038720,
   TVector3 tr1(loc_sensor_in_chip[0],
                loc_sensor_in_chip[1],
                loc_sensor_in_chip[2]);
@@ -173,6 +179,9 @@ CylinderGeom_Mvtx::get_world_from_local_coords(int stave, int half_stave, int mo
                inner_loc_halfstave_in_stave[2]);
   res += tr3;
 
+  TVector3 check = tr1+tr2+tr3;
+  //cout << " transform of sensor center to stave coords (x,y,z): " << check[0] << "  " << check[1] << "  " << check[2]  << endl;
+
   // Rotate stave to its angle in the world
   // This requires rotating it by
   //    90 degrees to make the face point to the origin instead of vertically up in y when it is at phi = 0 - stave_phi_offset is 90 degrees in CCW direction
@@ -189,6 +198,13 @@ CylinderGeom_Mvtx::get_world_from_local_coords(int stave, int half_stave, int mo
                layer_radius * sin(stave_phi),
                0.0);
   res += tr4;
+
+
+  check = R * check;
+  check += tr4;
+  cout << " stave transformed to world coords (x,y,z): " << tr4[0] << "  " << tr4[1] << "  " << tr4[2]  << endl;
+  cout << " transform sensor center to world coords (x,y,z): " << check[0] << "  " << check[1] << "  " << check[2]  << endl;
+
 
   return res;
 }
