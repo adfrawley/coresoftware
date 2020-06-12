@@ -18,6 +18,8 @@
 
 #include "ActsTrack.h"
 
+#include <TFile.h>
+#include <TTree.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -83,6 +85,11 @@ class PHActsTracks : public SubsysReco
 
   /// Acts TrackingGeometry necessary for various contexts
   ActsTrackingGeometry *m_tGeometry;
+
+  TFile *outfile;
+  TTree *seedTree;
+  float m_event;
+  float px,py,pz,x,y,z;
 };
 
 #endif

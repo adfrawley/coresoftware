@@ -35,13 +35,17 @@ PHActsTracks::PHActsTracks(const std::string &name)
   , m_hitIdClusKey(nullptr)
   , m_sourceLinks(nullptr)
   , m_tGeometry(nullptr)
+  , m_event(0)
 {
   Verbosity(0);
 }
 
 int PHActsTracks::End(PHCompositeNode *topNode)
 {
-
+  outfile->cd();
+  seedTree->Write();
+  outfile->Write();
+  outfile->Close();
   if (Verbosity() > 10)
   {
     std::cout << "Finished PHActsTracks" << std::endl;
@@ -52,6 +56,15 @@ int PHActsTracks::End(PHCompositeNode *topNode)
 
 int PHActsTracks::Init(PHCompositeNode *topNode)
 {
+  outfile = new TFile("trackSeedTree.root","RECREATE");
+  seedTree = new TTree("seedTree","a tree with track seed info");
+  seedTree->Branch("m_event",&m_event,"m_event/F");
+  seedTree->Branch("px",&px,"px/F");
+  seedTree->Branch("py",&py,"py/F");
+  seedTree->Branch("pz",&pz,"pz/F");
+  seedTree->Branch("x",&x,"x/F");
+  seedTree->Branch("y",&y,"y/F");
+  seedTree->Branch("z",&z,"z/F");
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
@@ -92,6 +105,15 @@ int PHActsTracks::process_event(PHCompositeNode *topNode)
       std::cout << "found SvtxTrack " << trackIter->first << std::endl;
       track->identify();
     }
+    
+    // do some quick and dirty track seed analysis
+    px = track->get_px();
+    py = track->get_py();
+    pz = track->get_pz();
+    x = track->get_x();
+    y = track->get_y();
+    z = track->get_z();
+    seedTree->Fill();
 
     /// Get the necessary parameters and values for the TrackParameters
     const Acts::BoundSymMatrix seedCov = 
@@ -150,6 +172,8 @@ int PHActsTracks::process_event(PHCompositeNode *topNode)
   if (Verbosity() > 20)
     std::cout << "Finished PHActsTrack::process_event" << std::endl;
 
+  ++m_event;
+  
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
