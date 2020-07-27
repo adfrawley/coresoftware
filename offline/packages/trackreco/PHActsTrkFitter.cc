@@ -281,6 +281,7 @@ void PHActsTrkFitter::updateSvtxTrack(Trajectory traj,
   out.set_z(0.0);
   track->insert_state(&out);   
 
+  // /*
   //========  begin temporary kluge because the smoothed momenta are screwed up
   // use first pass filter result for momentum for now
   int istate = 0;
@@ -312,6 +313,7 @@ void PHActsTrkFitter::updateSvtxTrack(Trajectory traj,
     }
     );
   //==========  end temporary kluge
+  //  */
 
   auto trajState =
     Acts::MultiTrajectoryHelpers::trajectoryState(mj, trackTip);
@@ -348,13 +350,13 @@ void PHActsTrkFitter::updateSvtxTrack(Trajectory traj,
     }
 
   calculateDCA(params);
-
+  
   // convert from mm to cm
   track->set_dca3d_xy(m_dca3Dxy / Acts::UnitConstants::cm);
   track->set_dca3d_z(m_dca3Dz / Acts::UnitConstants::cm);
   track->set_dca3d_xy_error(m_dca3DxyCov / Acts::UnitConstants::cm);
   track->set_dca3d_z_error(m_dca3DzCov / Acts::UnitConstants::cm);
-  
+
   // Also need to update the state list and cluster ID list for all measurements associated with the acts track  
   // loop over acts track states, copy over to SvtxTrackStates, and add to SvtxTrack
   fillSvtxTrackStates(traj, trackTip, track);  
