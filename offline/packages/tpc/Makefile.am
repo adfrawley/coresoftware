@@ -23,6 +23,7 @@ pkginclude_HEADERS = \
   TpcClusterizer.h \
   TpcClustering.h \
   TpcSimpleClustering.h \
+  TpcBetterClustering.h \
   TpcSpaceChargeCorrection.h \
   TpcClusterCleaner.h
 
@@ -38,6 +39,7 @@ libtpc_la_SOURCES = \
   TpcClusterizer.cc \
   TpcClustering.cc \
   TpcSimpleClustering.cc \
+  TpcBetterClustering.cc \
   TpcSpaceChargeCorrection.cc \
   TpcClusterCleaner.cc
 
