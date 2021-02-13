@@ -11,6 +11,7 @@
 
 #include <fun4all/Fun4AllReturnCodes.h>
 
+#include <phool/PHCompositeNode.h>
 #include <phool/getClass.h>
 #include <phool/phool.h>
 
@@ -63,11 +64,9 @@ int TpcClustering::Setup(PHCompositeNode *topNode)
   return  Fun4AllReturnCodes::EVENT_OK;
 }
 
-
 /*
 int TpcClustering::Process(PHCompositeNode *topNode)
 {
-
   if(Verbosity() > 0) 
     std::cout << std::endl << "original size of hit map: " << _hit_map->size() << std::endl;  
 
@@ -130,11 +129,51 @@ int TpcClustering::Process(PHCompositeNode *topNode)
 
 int  TpcClustering::GetNodes(PHCompositeNode* topNode)
 {
-  m_clusterlist = findNode::getClass<TrkrClusterContainer>(topNode, "TRKR_CLUSTER");
+  // find or create the cluster and cluster-hit association nodes
+  //========================================
+  PHNodeIterator iter(topNode);
+
+  // Looking for the DST node
+  PHCompositeNode *dstNode = dynamic_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "DST"));
+  if (!dstNode)
+  {
+    std::cout << PHWHERE << "DST Node missing, doing nothing." << std::endl;
+    return Fun4AllReturnCodes::ABORTRUN;
+  }
+
+  m_clusterlist = findNode::getClass<TrkrClusterContainer>(dstNode, "TRKR_CLUSTER");
   if (!m_clusterlist)
   {
-    std::cout << PHWHERE << " ERROR: Can't find node TRKR_CLUSTER" << std::endl;
-    return Fun4AllReturnCodes::ABORTEVENT;
+    PHNodeIterator dstiter(dstNode);
+    PHCompositeNode *DetNode =
+        dynamic_cast<PHCompositeNode *>(dstiter.findFirst("PHCompositeNode", "TRKR"));
+    if (!DetNode)
+    {
+      DetNode = new PHCompositeNode("TRKR");
+      dstNode->addNode(DetNode);
+    }
+
+    m_clusterlist = new TrkrClusterContainer();
+    PHIODataNode<PHObject> *TrkrClusterContainerNode =
+        new PHIODataNode<PHObject>(m_clusterlist, "TRKR_CLUSTER", "PHObject");
+    DetNode->addNode(TrkrClusterContainerNode);
+  }
+
+  m_clusterhitassoc = findNode::getClass<TrkrClusterHitAssoc>(topNode, "TRKR_CLUSTERHITASSOC");
+  if (!m_clusterhitassoc)
+  {
+    PHNodeIterator dstiter(dstNode);
+    PHCompositeNode *DetNode =
+        dynamic_cast<PHCompositeNode *>(dstiter.findFirst("PHCompositeNode", "TRKR"));
+    if (!DetNode)
+    {
+      DetNode = new PHCompositeNode("TRKR");
+      dstNode->addNode(DetNode);
+    }
+
+    m_clusterhitassoc = new TrkrClusterHitAssoc();
+    PHIODataNode<PHObject> *newNode = new PHIODataNode<PHObject>(m_clusterhitassoc, "TRKR_CLUSTERHITASSOC", "PHObject");
+    DetNode->addNode(newNode);
   }
 
   // get node containing the digitized hits
@@ -146,37 +185,3 @@ int  TpcClustering::GetNodes(PHCompositeNode* topNode)
   }
   return Fun4AllReturnCodes::EVENT_OK;
 }
-
-/*
-void TpcClustering::rotate_error(double erphi, double ez, double clusphi, double error[][3])
-{
- TMatrixF ROT(3, 3);
-  TMatrixF ERR(3,3);
- for(int i=0;i<3;++i)
-    for(int j=0;j<3;++j)
-      {
-	ROT[i][j] = 0;
-	ERR[i][j] = 0;
-      }
-
-  ROT[0][0] = cos(clusphi);
-  ROT[0][1] = -sin(clusphi);
-  ROT[1][0] = sin(clusphi);
-  ROT[1][1] = cos(clusphi);
-  ROT[2][2] = 1.0;
-
-  ERR[1][1] = erphi*erphi; 
-  ERR[2][2] = ez*ez;
- 
-  TMatrixF ROT_T(3, 3);
-  ROT_T.Transpose(ROT);
-
-  TMatrixF COVAR_ERR(3, 3);
-  COVAR_ERR = ROT * ERR * ROT_T;
-
-  for(int i=0;i<3;++i)
-    for(int j=0;j<3;++j)
-      error[i][j] = COVAR_ERR[i][j];
-
-}
-*/

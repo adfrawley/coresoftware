@@ -464,53 +464,8 @@ void TpcSimpleClustering::get_cluster(int phibin, int zbin, std::vector<std::vec
 
 int TpcSimpleClustering::Setup(PHCompositeNode *topNode)
 {
+  // get the node pointers in the base class
   TpcClustering::Setup(topNode);
-
-  PHNodeIterator iter(topNode);
-
-  // Looking for the DST node
-  PHCompositeNode *dstNode = dynamic_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "DST"));
-  if (!dstNode)
-  {
-    cout << PHWHERE << "DST Node missing, doing nothing." << endl;
-    return Fun4AllReturnCodes::ABORTRUN;
-  }
-
-  // Create the Cluster node if required
-  TrkrClusterContainer *trkrclusters = findNode::getClass<TrkrClusterContainer>(dstNode, "TRKR_CLUSTER");
-  if (!trkrclusters)
-  {
-    PHNodeIterator dstiter(dstNode);
-    PHCompositeNode *DetNode =
-        dynamic_cast<PHCompositeNode *>(dstiter.findFirst("PHCompositeNode", "TRKR"));
-    if (!DetNode)
-    {
-      DetNode = new PHCompositeNode("TRKR");
-      dstNode->addNode(DetNode);
-    }
-
-    trkrclusters = new TrkrClusterContainer();
-    PHIODataNode<PHObject> *TrkrClusterContainerNode =
-        new PHIODataNode<PHObject>(trkrclusters, "TRKR_CLUSTER", "PHObject");
-    DetNode->addNode(TrkrClusterContainerNode);
-  }
-
-  TrkrClusterHitAssoc *clusterhitassoc = findNode::getClass<TrkrClusterHitAssoc>(topNode, "TRKR_CLUSTERHITASSOC");
-  if (!clusterhitassoc)
-  {
-    PHNodeIterator dstiter(dstNode);
-    PHCompositeNode *DetNode =
-        dynamic_cast<PHCompositeNode *>(dstiter.findFirst("PHCompositeNode", "TRKR"));
-    if (!DetNode)
-    {
-      DetNode = new PHCompositeNode("TRKR");
-      dstNode->addNode(DetNode);
-    }
-
-    clusterhitassoc = new TrkrClusterHitAssoc();
-    PHIODataNode<PHObject> *newNode = new PHIODataNode<PHObject>(clusterhitassoc, "TRKR_CLUSTERHITASSOC", "PHObject");
-    DetNode->addNode(newNode);
-  }
 
   return Fun4AllReturnCodes::EVENT_OK;
 }
@@ -521,38 +476,6 @@ int TpcSimpleClustering::Process(PHCompositeNode *topNode)
 
   if (Verbosity() > 1000)
     std::cout << "TpcSimpleClustering::Process_Event" << std::endl;
-
-  PHNodeIterator iter(topNode);
-  PHCompositeNode *dstNode = static_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "DST"));
-  if (!dstNode)
-  {
-    cout << PHWHERE << "DST Node missing, doing nothing." << endl;
-    return Fun4AllReturnCodes::ABORTRUN;
-  }
-
-  // get node containing the digitized hits
-  m_hits = findNode::getClass<TrkrHitSetContainer>(topNode, "TRKR_HITSET");
-  if (!m_hits)
-  {
-    cout << PHWHERE << "ERROR: Can't find node TRKR_HITSET" << endl;
-    return Fun4AllReturnCodes::ABORTRUN;
-  }
-
-  // get node for clusters
-  m_clusterlist = findNode::getClass<TrkrClusterContainer>(topNode, "TRKR_CLUSTER");
-  if (!m_clusterlist)
-  {
-    cout << PHWHERE << " ERROR: Can't find TRKR_CLUSTER." << endl;
-    return Fun4AllReturnCodes::ABORTRUN;
-  }
-
-  // get node for cluster hit associations
-  m_clusterhitassoc = findNode::getClass<TrkrClusterHitAssoc>(topNode, "TRKR_CLUSTERHITASSOC");
-  if (!m_clusterhitassoc)
-  {
-    cout << PHWHERE << " ERROR: Can't find TRKR_CLUSTERHITASSOC" << endl;
-    return Fun4AllReturnCodes::ABORTRUN;
-  }
 
   PHG4CylinderCellGeomContainer *geom_container =
       findNode::getClass<PHG4CylinderCellGeomContainer>(topNode, "CYLINDERCELLGEOM_SVTX");
