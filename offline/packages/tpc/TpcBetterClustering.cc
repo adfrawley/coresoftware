@@ -163,7 +163,11 @@ void TpcBetterClustering::calc_cluster_parameter(std::vector<ihit> &ihit_list,in
   int zbinlo = 666666;
   int clus_size = ihit_list.size();
 
-  if(clus_size == 1) return;
+  if(clus_size == 1)
+    {
+      std::cout << "      Dropping cluster: hits size too small" << std::endl;
+      return;
+    }
 
   std::vector<TrkrDefs::hitkey> hitkeyvec;
   for(auto iter = ihit_list.begin(); iter != ihit_list.end();++iter){
@@ -196,8 +200,12 @@ void TpcBetterClustering::calc_cluster_parameter(std::vector<ihit> &ihit_list,in
     TrkrDefs::hitkey hitkey = TpcDefs::genHitKey(iphi, iz);
     hitkeyvec.push_back(hitkey);
   }
-  if (adc_sum < 10) return;  // skip obvious noise "clusters"
-  
+  if (adc_sum < 10)
+    {
+      std::cout << "      Dropping cluster: adc_sum = " << adc_sum << std::endl;
+      return;  // skip obvious noise "clusters"
+    }
+      
   // This is the global position
   double clusphi = phi_sum / adc_sum;
   double clusz = z_sum / adc_sum;
@@ -224,7 +232,7 @@ void TpcBetterClustering::calc_cluster_parameter(std::vector<ihit> &ihit_list,in
     square(layergeom->get_zstep())/12:
     z_cov/(adc_sum*0.14);
 
-  //cout << "   layer " << layer << " z_cov " << z_cov << " dz2_adc " << dz2_adc << " adc_sum " <<  adc_sum << " dz_adc " << dz_adc << endl;
+  cout << "      Adding cluster: layer " << layergeom->get_layer() <<  " adc_sum " <<  adc_sum << " phi size " << phi_size << " phi cov " << phi_cov << " z size " << z_size << " z_cov " << z_cov << endl;
   
   // phi_cov = (weighted mean of dphi^2) - (weighted mean of dphi)^2,  which is essentially the weighted mean of dphi^2. The error is then:
   // e_phi = sigma_dphi/sqrt(N) = sqrt( sigma_dphi^2 / N )  -- where N is the number of samples of the distribution with standard deviation sigma_dphi
@@ -329,7 +337,9 @@ void TpcBetterClustering::print_cluster(std::vector<ihit> &ihit_list)
   }
 }
 
-void TpcBetterClustering::find_z_range(int phibin, int zbin, std::vector<std::vector<double>> &adcval, int& zdown, int& zup){
+int TpcBetterClustering::find_z_range(int phibin, int zbin, std::vector<std::vector<double>> &adcval, int& zdown, int& zup){
+
+  int z_overlap_flag = 0;
 
   int FitRangeZ = 5;
   zup = 0;
@@ -353,6 +363,9 @@ void TpcBetterClustering::find_z_range(int phibin, int zbin, std::vector<std::ve
     if(cz<NZBinsMax-4){//make sure we stay clear from the edge
       if(adcval[phibin][cz]+adcval[phibin][cz+1] < 
 	 adcval[phibin][cz+2]+adcval[phibin][cz+3]){//rising again
+	// flag this cluster if turnup point is > _overlap_thresh * peak adcval of cluster
+	if(adcval[phibin][cz+1] > _overlap_thresh * adcval[phibin][zbin])
+	  z_overlap_flag += 1;
 	zup = iz+1;
 	break;
       }
@@ -375,15 +388,21 @@ void TpcBetterClustering::find_z_range(int phibin, int zbin, std::vector<std::ve
     if(cz>4){//make sure we stay clear from the edge
       if(adcval[phibin][cz]+adcval[phibin][cz-1] < 
 	 adcval[phibin][cz-2]+adcval[phibin][cz-3]){//rising again
+	// flag this cluster if turnup point is > 10% of cluster peak
+	if(adcval[phibin][cz-1] > _overlap_thresh * adcval[phibin][zbin])
+	  z_overlap_flag += 1;
 	zdown = iz+1;
 	break;
       }
     }
     zdown = iz;
   }
+  return z_overlap_flag;
 }
 
-void TpcBetterClustering::find_phi_range(int phibin, int zbin, std::vector<std::vector<double>> &adcval, int& phidown, int& phiup){
+int TpcBetterClustering::find_phi_range(int phibin, int zbin, std::vector<std::vector<double>> &adcval, int& phidown, int& phiup){
+
+  int phi_overlap_flag = 0;
 
   int FitRangePHI = 3;
   phidown = 0;
@@ -407,6 +426,12 @@ void TpcBetterClustering::find_phi_range(int phibin, int zbin, std::vector<std::
     if(cphi<NPhiBinsMax-4){//make sure we stay clear from the edge
       if(adcval[cphi][zbin]+adcval[cphi+1][zbin] < 
 	 adcval[cphi+2][zbin]+adcval[cphi+3][zbin]){//rising again
+	// flag this cluster if turnup point is > 10% of cluster peak
+	if(adcval[cphi+1][zbin] > _overlap_thresh * adcval[phibin][zbin])
+	  {
+	    std::cout << " turnup going up at phi bin "  << cphi+1 << " adcval " << adcval[cphi+1][zbin] << " zbin " << zbin << " phi bin up adcval " << adcval[cphi+2][zbin] << std::endl;
+	    phi_overlap_flag += 1;
+	  }
 	phiup = iphi+1;
 	break;
       }
@@ -431,35 +456,51 @@ void TpcBetterClustering::find_phi_range(int phibin, int zbin, std::vector<std::
     if(cphi>4){//make sure we stay clear from the edge
       if(adcval[cphi][zbin]+adcval[cphi-1][zbin] < 
 	 adcval[cphi-2][zbin]+adcval[cphi-3][zbin]){//rising again
+	// flag this cluster if turnup point is > 10% of cluster peak
+	if(adcval[cphi-1][zbin] > _overlap_thresh * adcval[phibin][zbin])
+	  {
+	    std::cout << " turnup going down at phi bin "  << cphi-1 << " adcval " << adcval[cphi-1][zbin] << " zbin " << zbin << " phi bin down adcval " << adcval[cphi-2][zbin] << std::endl;
+	    phi_overlap_flag += 1;
+	  }
 	phidown = iphi+1;
 	break;
       }
     }
     phidown = iphi;
   }
+  return phi_overlap_flag;
 }
 
-void TpcBetterClustering::get_cluster(int phibin, int zbin, std::vector<std::vector<double>> &adcval, std::vector<ihit> &ihit_list)
+int TpcBetterClustering::get_cluster(int phibin, int zbin, std::vector<std::vector<double>> &adcval, std::vector<ihit> &ihit_list)
 {
   // search along phi at the peak in z
  
   int zup =0;
   int zdown =0;
-  find_z_range(phibin, zbin, adcval, zdown, zup);
-  if(Verbosity()>10) cout << " zbin: " << zbin << " zdown: " << zdown << " zup: " << zup << " phi " << phibin << endl;
+  int n_zoverlaps = find_z_range(phibin, zbin, adcval, zdown, zup);
+  // if(Verbosity()>10) 
+  if(n_zoverlaps > 0)
+    cout << " z overlap: zbin: " << zbin << " phibin " << phibin << " zdown: " << zdown << " zup: " << zup << " phi " << phibin << endl;
   //now we have the z extent of the cluster, go find the phi edges
 
+  int n_phioverlaps = 0;
   for(int iz=zbin - zdown ; iz<= zbin + zup; iz++){
     int phiup = 0;
     int phidown = 0;
-    find_phi_range(phibin, iz, adcval, phidown, phiup);
-    if(Verbosity()>10) cout << "phibin: " << phibin << " zbin: " << " phidown " << phidown << " phiup " << phiup  << endl;
+    n_phioverlaps += find_phi_range(phibin, iz, adcval, phidown, phiup);
+    //if(Verbosity()>10) 
+    if(n_phioverlaps > 0)
+      cout << "         phi overlap: phibin: " << phibin << " iz: " << iz << " phidown " << phidown << " phiup " << phiup  << endl;
     for (int iphi = phibin - phidown; iphi <= (phibin + phiup); iphi++){
       iphiz iCoord(make_pair(iphi,iz));
       ihit  thisHit(adcval[iphi][iz],iCoord);
       ihit_list.push_back(thisHit);
     }
   }
+  int n_overlaps = n_zoverlaps+n_phioverlaps;
+  if(n_overlaps > 0)  
+    std::cout << "     n_overlaps " << n_overlaps << " n_zoverlaps " << n_zoverlaps << " n_phioverlaps " << n_phioverlaps << std::endl;
+  return n_overlaps;
 }
 
 int TpcBetterClustering::Setup(PHCompositeNode *topNode)
@@ -496,8 +537,8 @@ int TpcBetterClustering::Process(PHCompositeNode *topNode)
   {
     TrkrHitSet *hitset = hitsetitr->second;
     int layer = TrkrDefs::getLayer(hitsetitr->first);
-    if (Verbosity() > 2)
-      if (layer == print_layer)
+    //if (Verbosity() > 2)
+    //if (layer == print_layer)
       {
 	cout << endl << "TpcBetterClustering process hitsetkey " << hitsetitr->first
 	     << " layer " << (int) TrkrDefs::getLayer(hitsetitr->first)
@@ -559,6 +600,7 @@ int TpcBetterClustering::Process(PHCompositeNode *topNode)
 
       if (hitr->second->getAdc() > 0)
 	{
+	  //put all hits in the all_hit_map (sorted by adc)
 	  if(adc>0){
 	    iphiz iCoord(make_pair(phibin,zbin));
 	    ihit  thisHit(adc,iCoord);
@@ -572,33 +614,40 @@ int TpcBetterClustering::Process(PHCompositeNode *topNode)
 	}
       
     }
-    //put all hits in the all_hit_map (sorted by adc)
 
     int nclus = 0;
     while(all_hit_map.size()>0){
       auto iter = all_hit_map.rbegin();
       if(iter == all_hit_map.rend()) break;
 
-      ihit hiHit = iter->second;
       //start with highest adc hit
-      if(Verbosity()>10) cout << "  test entries: " << all_hit_map.size() << " adc: " << hiHit.first << " iphi: " << hiHit. second.first << " iz: " << hiHit.second.second << endl;
+      ihit hiHit = iter->second;
+      //if(Verbosity()>10) 
+	cout << "  total hit map entries: " << all_hit_map.size() << " peak adc: " << hiHit.first << " peak iphi: " << hiHit. second.first << " peak iz: " << hiHit.second.second << endl;
       //      double adc = hiHit.first;
       int iphi = hiHit.second.first;
       int iz = hiHit.second.second;
 
-      //put all hits in the all_hit_map (sorted by adc)
-      //start with highest adc hit
-      // -> cluster around it and get vector of hits
+      // -> cluster around highest hit and get vector of hits
       std::vector<ihit> ihit_list;
-      get_cluster(iphi, iz, adcval, ihit_list);
-      if(Verbosity()>10) 
-	cout << " cluster size: " << ihit_list.size() << " #clusters: " << nclus<< endl;
+      int n_overlaps = get_cluster(iphi, iz, adcval, ihit_list);
+      //if(Verbosity()>10) 
+      cout << "  found cluster: number of hits: " << ihit_list.size() <<  endl;
       // -> calculate cluster parameters
       // -> add hits to truth association
       // remove hits from all_hit_map
       // repeat untill all_hit_map empty
-      //      print_cluster(ihit_list);
-      calc_cluster_parameter(ihit_list,nclus++, layergeom, hitset);
+      print_cluster(ihit_list);
+      // do not store clusters with overlaps
+      if(n_overlaps == 0)
+	{
+	  calc_cluster_parameter(ihit_list,nclus++, layergeom, hitset);
+	  cout << " cluster list size now " << nclus << endl;
+	}
+      else
+	{
+	  std::cout << " in this cluster found n_overlaps = " << n_overlaps << "  drop cluster " << nclus + 1 << std::endl;
+	}
       remove_hits(ihit_list,all_hit_map,adcval);
     }
   }
