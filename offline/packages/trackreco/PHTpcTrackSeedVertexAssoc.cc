@@ -72,6 +72,8 @@ int PHTpcTrackSeedVertexAssoc::Process()
   // Then we add the collision vertex position as the track seed position
   // All we need is to project the TPC clusters in Z to the beam line.
 
+  std::set<unsigned int> bad_tracks;
+
   double grand_circle_rms_squared = 0.0;
   double grand_circle_wt = 0.0;
   double grand_line_rms_squared = 0.0;
@@ -119,7 +121,7 @@ int PHTpcTrackSeedVertexAssoc::Process()
 	  layers.insert(layer);
 	}
       unsigned int nlayers = layers.size();
-      if(Verbosity() > 2) std::cout << "    TPC layers this track: " << nlayers << std::endl;
+      if(Verbosity() > 5) std::cout << "    TPC layers this track: " << nlayers << std::endl;
 
       if(clusters.size() < 3)
 	{
@@ -130,7 +132,7 @@ int PHTpcTrackSeedVertexAssoc::Process()
       // get the straight line representing the z trajectory in the form of z vs radius
       double A = 0; double B = 0;
       line_fit_clusters(clusters, A, B);
-      if(Verbosity() > 2) std::cout << " First fitted line has A " << A << " B " << B << std::endl;
+      if(Verbosity() > 5) std::cout << " First fitted line has A " << A << " B " << B << std::endl;
 
       // Project this TPC tracklet  to the beam line and store the projections
       _z_proj = B;
@@ -171,7 +173,7 @@ int PHTpcTrackSeedVertexAssoc::Process()
       _tracklet_tpc->set_y(vertex->get_y());
       _tracklet_tpc->set_z(vertex->get_z());
 
-      if(Verbosity() > 1)
+      if(Verbosity() > 5)
 	  std::cout << "    TPC seed track " << phtrk_iter->first << " matched to vertex " << trackVertexId << endl; 
 
       // Finished association of track with vertex, now we modify the track parameters
@@ -190,7 +192,7 @@ int PHTpcTrackSeedVertexAssoc::Process()
 	}
       
       line_fit(points, A, B);
-      if(Verbosity() > 2) 
+      if(Verbosity() > 5) 
 	std::cout << "       Fitted line including vertex has A " << A << " B " << B << std::endl;      
 
       // optionally reject clusters with large residuals
@@ -202,7 +204,6 @@ int PHTpcTrackSeedVertexAssoc::Process()
 	  for(unsigned int i = 1; i < points.size(); ++i)
 	    {
 	      double res_squared =  line_residuals[i]*line_residuals[i];
-	      //if(sqrt(res_squared) < 0.15)  // 1.5 mm, about 3 sigma
 	      if(sqrt(res_squared) < _z_residual_cut)  
 		{
 		  line_rms_squared += res_squared;
@@ -248,7 +249,8 @@ int PHTpcTrackSeedVertexAssoc::Process()
 	  if(clusters.size() < 10)
 	    {
 	      if(Verbosity() > 2) std::cout << "    erasing tracklet " << _tracklet_tpc->get_id()  << std::endl;
-	      _track_map->erase(_tracklet_tpc->get_id());	      
+	      bad_tracks.insert(_tracklet_tpc->get_id());
+	      // _track_map->erase(_tracklet_tpc->get_id());	      
 	      continue;
 	    }
 
@@ -305,17 +307,19 @@ int PHTpcTrackSeedVertexAssoc::Process()
 		{
 		  circle_rms_squared += res_squared;
 		  circle_wt += 1.0;
-		  //std::cout << " cluster " << i << " x " << cpoints[i].first << " y " << cpoints[i].second << " residual " << residuals[i] << std::endl;
+		  if(Verbosity() > 5)
+		    std::cout << " cluster " << i << " x " << cpoints[i].first << " y " << cpoints[i].second << " residual " << residuals[i] << " cut " << _xy_residual_cut << std::endl;
 		}
 	      else
 		{
 		  // flag this cluster for removal from the track
 		  bad_clusters.insert(clusters[i-1]->getClusKey());
-		  //std::cout << " bad cluster " << i << " x " << cpoints[i].first << " y " << cpoints[i].second << " residual " << residuals[i]  << std::endl;
+		  if(Verbosity() > 5) 
+		    std::cout << " bad cluster " << i << " x " << cpoints[i].first << " y " << cpoints[i].second << " residual " << residuals[i]  << std::endl;
 		}
 	    }
 	  double circle_rms = sqrt(circle_rms_squared / circle_wt);
-	  if(Verbosity() > 5) std::cout << " circle_rms = " << circle_rms << " circle_rms_squared " << circle_rms_squared << " circle_wt " << circle_wt << std::endl;
+	  if(Verbosity() > 5) std::cout << " circle_rms = " << circle_rms << " circle_wt " << circle_wt << std::endl;
 	  
 	  grand_circle_rms_squared += circle_rms_squared;
 	  grand_circle_wt += circle_wt;
@@ -342,8 +346,9 @@ int PHTpcTrackSeedVertexAssoc::Process()
 
 	  if(clusters.size() < 10)
 	    {
-	      if(Verbosity() > 2) std::cout << "   erasing  tracklet " << _tracklet_tpc->get_id()  << std::endl;
-	      _track_map->erase(_tracklet_tpc->get_id());	      
+	      if(Verbosity() > 0) std::cout << "   erasing  tracklet " << _tracklet_tpc->get_id()  << std::endl;
+	      //_track_map->erase(_tracklet_tpc->get_id());	      
+	      bad_tracks.insert(_tracklet_tpc->get_id());
 	      continue;
 	    }
 
@@ -366,12 +371,13 @@ int PHTpcTrackSeedVertexAssoc::Process()
 	}
 
       double pt_track = _tracklet_tpc->get_pt();
-      if(Verbosity() > 5)
+      if(Verbosity() > 2)
 	{
 	  //  get the pT from radius of circle as a check 
 	  double Bfield = 1.4;  // T
 	  double pt_circle = 0.3 * Bfield * R * 0.01;  // convert cm to m 
 	  std::cout << " pT from circle of radius R = " << R << " in field of " << Bfield << " Tesla is " << pt_circle << " seed pT is " << pt_track  << std::endl; 
+	  //pt_track = pt_circle;
 	}
       
       // We want the angle of the tangent relative to the positive x axis
@@ -393,7 +399,8 @@ int PHTpcTrackSeedVertexAssoc::Process()
       // need to deal with the switch from -pi to +pi at phi = 180 degrees
       // final phi - initial phi must be < 180 degrees for it to be a valid track
       if(dphi > M_PI) dphi -= 2.0 * M_PI;
-      if(dphi < - M_PI) dphi += M_PI;
+      //if(dphi < - M_PI) dphi += M_PI;
+      if(dphi < - M_PI) dphi += 2.0 * M_PI;
 
       if(Verbosity() > 5) 
 	  std::cout << " charge " <<  _tracklet_tpc->get_charge() << " phi0 " << phi0*180.0 / M_PI << " phi1 " << phi1*180.0 / M_PI << " dphi " << dphi*180.0 / M_PI << std::endl;
@@ -402,8 +409,11 @@ int PHTpcTrackSeedVertexAssoc::Process()
       if(dphi < 0)
 	phi += M_PI / 2.0;  
       else
-	phi -= M_PI / 2.0;  
-      if(Verbosity() > 5) 
+	phi -= M_PI / 2.0;
+      if(phi < -M_PI) phi += 2.0 * M_PI;
+      if(phi > M_PI) phi -= 2.0 * M_PI;
+  
+      if(Verbosity() > 2) 
 	std::cout << " input track phi " << _tracklet_tpc->get_phi() * 180.0 / M_PI << " new phi " << phi * 180 / M_PI << std::endl;  
 
       // get the updated values of px, py, pz from the pT and the angles found here
@@ -412,7 +422,7 @@ int PHTpcTrackSeedVertexAssoc::Process()
       double ptrack_new = pt_track / cos(track_angle);
       double pz_new = ptrack_new * sin(track_angle);
 
-      if(Verbosity() > 5)
+      if(Verbosity() > 2)
 	std::cout << " input track mom " << _tracklet_tpc->get_p() << " new mom " << ptrack_new
 		  << " px in " << _tracklet_tpc->get_px()  << " px " << px_new 
 		  << " py in " << _tracklet_tpc->get_py() << " py " << py_new 
@@ -426,10 +436,17 @@ int PHTpcTrackSeedVertexAssoc::Process()
       _tracklet_tpc->set_py(py_new);
       _tracklet_tpc->set_pz(pz_new);
 
-      if(Verbosity() > 5)
+      if(Verbosity() > 2)
 	std::cout << " new mom " <<  _tracklet_tpc->get_p() <<  "  new eta " <<  _tracklet_tpc->get_eta() << " new phi " << _tracklet_tpc->get_phi() * 180.0 / M_PI << std::endl;
       
     }  // end loop over TPC track seeds
+
+  // remove bad tracks
+  for(auto &key : bad_tracks)
+    {
+      if(Verbosity() > 0) std::cout << " Removing bad TPC tracklet " <<  key << std::endl;
+      _track_map->erase(key);	            
+    }
 
   bad_clusters_per_track_z /= bad_clusters_per_track_z_wt;
   bad_clusters_per_track_xy /= bad_clusters_per_track_xy_wt;
@@ -437,16 +454,16 @@ int PHTpcTrackSeedVertexAssoc::Process()
     std::cout << "Bad clusters per track:  z:  wt " << bad_clusters_per_track_z_wt << " bad clusters "  << bad_clusters_per_track_z 
 	      << " xy: wt " << bad_clusters_per_track_xy_wt << " bad clusters "  << bad_clusters_per_track_xy << std::endl;
 
-  if(_reject_z_outliers && Verbosity() > 5)
+  if(_reject_z_outliers && Verbosity() > 2)
     {
       double grand_line_rms =  sqrt(grand_line_rms_squared / grand_line_wt);  
-      std::cout << "grand_line_rms = " << grand_line_rms << " grand_line_rms_squared " << grand_line_rms_squared << " grand_line_wt " << grand_line_wt << std::endl;
+      std::cout << "grand_line_rms = " << grand_line_rms << " grand_line_wt " << grand_line_wt << std::endl;
     }
 
-  if(_reject_xy_outliers && Verbosity() > 5)
+  if(_reject_xy_outliers && Verbosity() > 2)
     {
       double grand_circle_rms =  sqrt(grand_circle_rms_squared / grand_circle_wt);  
-      std::cout << "grand circle rms = " << grand_circle_rms << " grand_circle_rms_squared " << grand_circle_rms_squared << " grand_circle_wt " << grand_circle_wt << std::endl;
+      std::cout << "grand circle rms = " << grand_circle_rms << " grand_circle_wt " << grand_circle_wt << std::endl;
     }
   
   if(Verbosity() > 0)  
