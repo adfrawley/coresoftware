@@ -788,11 +788,19 @@ void MakeActsGeometry::makeMmMapPairs(TrackingVolumePtr &mmVolume)
             
       // get segmentation type
       const auto segmentation_type = layergeom->get_segmentation_type();
-      
+
       // create hitset key and insert surface in map
       const auto hitsetkey = MicromegasDefs::genHitSetKey(layer, segmentation_type, tileid);
+
       const auto [iter, inserted] = m_clusterSurfaceMapMmEdit.insert( std::make_pair( hitsetkey, surface ) );
-      assert( inserted );
+      // insertion fails if this hitsetkey is alreay in the map
+      if(inserted)
+	{
+	  if(Verbosity() > 0)
+	    std::cout << PHWHERE << " layer " << layer << " hitsetkey " << hitsetkey 
+		      << " world center " << world_center.X() << ", " << world_center.Y() << ", " << world_center.Z() 
+		      << " tileid " << tileid << " surfaceVector.size() " <<  surfaceVector.size() << std::endl;      
+	}
     }
   }
   
@@ -1457,13 +1465,13 @@ int MakeActsGeometry::createNodes(PHCompositeNode *topNode)
 
   m_surfMaps = findNode::getClass<ActsSurfaceMaps>(topNode,
 						   "ActsSurfaceMaps");
+
   if(!m_surfMaps)
     {
       m_surfMaps = new ActsSurfaceMaps();
       PHDataNode<ActsSurfaceMaps> *node
 	= new PHDataNode<ActsSurfaceMaps>(m_surfMaps, "ActsSurfaceMaps");
       svtxNode->addNode(node);
-
     }
 
   m_actsGeometry = findNode::getClass<ActsTrackingGeometry>(topNode,
