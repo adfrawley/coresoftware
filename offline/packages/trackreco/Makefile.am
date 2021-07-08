@@ -48,6 +48,7 @@ pkginclude_HEADERS = \
   PHTrackCleaner.h \
   PHRTreeSeeding.h \
   PHCASeeding.h \
+  PHFindSecondarySiliconClusters.h \
   PHHybridSeeding.h \
   PHInitVertexing.h \
   PHInitZVertexing.h \
@@ -165,6 +166,7 @@ libtrack_reco_la_SOURCES = \
   ../PHTpcTracker/PHTpcTrackerUtil.cc \
   PHHybridSeeding.cc \
   PHCASeeding.cc \
+  PHFindSecondarySiliconClusters.cc \
   PHGenFitTrkProp.cc \
   PHGenFitTrkFitter.cc \
   PHGenFitTrackProjection.cc \
