@@ -175,13 +175,13 @@ int SvtxEvaluator::Init(PHCompositeNode* topNode)
                                                  "gvx:gvy:gvz:gvt:"
                                                  "gfpx:gfpy:gfpz:gfx:gfy:gfz:"
                                                  "gembed:gprimary:"
-                                                 "trackID:px:py:pz:pt:eta:phi:deltapt:deltaeta:deltaphi:"
+                                                 "trackID:x:y:z:px:py:pz:pt:eta:phi:deltapt:deltaeta:deltaphi:"
                                                  "charge:quality:chisq:ndf:nhits:layers:nmaps:nintt:ntpc:nmms:ntpc1:ntpc11:ntpc2:ntpc3:nlmaps:nlintt:nltpc:nlmms:"
                                                  "dca2d:dca2dsigma:dca3dxy:dca3dxysigma:dca3dz:dca3dzsigma:pcax:pcay:pcaz:nfromtruth:nwrong:ntrumaps:ntruintt:ntrutpc:ntrumms:ntrutpc1:ntrutpc11:ntrutpc2:ntrutpc3:layersfromtruth:"
                                                  "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms");
 
   if (_do_track_eval) _ntp_track = new TNtuple("ntp_track", "svtxtrack => max truth",
-                                               "event:seed:trackID:px:py:pz:pt:eta:phi:deltapt:deltaeta:deltaphi:charge:"
+                                               "event:seed:trackID:x:y:z:px:py:pz:pt:eta:phi:deltapt:deltaeta:deltaphi:charge:"
                                                "quality:chisq:ndf:nhits:nmaps:nintt:ntpc:nmms:ntpc1:ntpc11:ntpc2:ntpc3:nlmaps:nlintt:nltpc:nlmms:layers:"
                                                "dca2d:dca2dsigma:dca3dxy:dca3dxysigma:dca3dz:dca3dzsigma:pcax:pcay:pcaz:"
                                                "presdphi:presdeta:prese3x3:prese:"
@@ -2370,8 +2370,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
     PHG4TruthInfoContainer* truthinfo = findNode::getClass<PHG4TruthInfoContainer>(topNode, "G4TruthInfo");
     if (truthinfo)
     {
-      PHG4TruthInfoContainer::ConstRange range = truthinfo->GetPrimaryParticleRange();
-      Float_t gntracks = (Float_t) truthinfo->GetNumPrimaryVertexParticles();
+      //PHG4TruthInfoContainer::ConstRange range = truthinfo->GetPrimaryParticleRange();
+      //Float_t gntracks = (Float_t) truthinfo->GetNumPrimaryVertexParticles();
+      PHG4TruthInfoContainer::ConstRange range = truthinfo->GetParticleRange();
+      Float_t gntracks = (Float_t) truthinfo->size();
       for (PHG4TruthInfoContainer::ConstIterator iter = range.first;
            iter != range.second;
            ++iter)
@@ -2565,7 +2567,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         float dca3dxysigma = NAN;
         float dca3dz = NAN;
         float dca3dzsigma = NAN;
-        float px = NAN;
+        float x = NAN;
+        float y = NAN;
+        float z = NAN; 
+	float px = NAN;
         float py = NAN;
         float pz = NAN;
         float pt = NAN;
@@ -2697,6 +2702,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
             dca3dxysigma = track->get_dca3d_xy_error();
             dca3dz = track->get_dca3d_z();
             dca3dzsigma = track->get_dca3d_z_error();
+            x = track->get_x();
+            y = track->get_y();
+            z = track->get_z();
             px = track->get_px();
             py = track->get_py();
             pz = track->get_pz();
@@ -2716,6 +2724,18 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
             pcax = track->get_x();
             pcay = track->get_y();
             pcaz = track->get_z();
+
+	    if(Verbosity() > 2)
+	      {
+		std::cout << "ntp_gtrack: trackID " << trackID
+			  << " x " << x << " y " << y << " z " << z << " phi " << phi << " eta " << eta
+			  << std::endl;
+		std::cout  << "            gtrackID " << gtrackID 
+			   << " gvx " << gvx << " gvy " << gvy << " gvz " << gvz << " gphi " << gphi << " geta " << geta 
+			   << std::endl;
+		std::cout << "            gflavor " << gflavor << " vtxID " << vtx->get_id()
+			  << std::endl;
+	      }
 
             nfromtruth = trackeval->get_nclusters_contribution(track, g4particle);
             nwrong = trackeval->get_nwrongclusters_contribution(track, g4particle);
@@ -2793,7 +2813,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                                gembed,
                                gprimary,
                                trackID,
-                               px,
+			       x,
+			       y,
+			       z,
+			       px,
                                py,
                                pz,
                                pt,
@@ -2984,6 +3007,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         float dca3dxysigma = track->get_dca3d_xy_error();
         float dca3dz = track->get_dca3d_z();
         float dca3dzsigma = track->get_dca3d_z_error();
+        float x = track->get_x();
+        float y = track->get_y();
+        float z = track->get_z();
         float px = track->get_px();
         float py = track->get_py();
         float pz = track->get_pz();
@@ -3148,6 +3174,18 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
             gvz = vtx->get_z();
             gvt = vtx->get_t();
 
+	    if(Verbosity() > 2)
+	      {
+		std::cout << "ntp_track: trackID " << trackID
+			  << " x " << x << " y " << y << " z " << z << " phi " << phi << " eta " << eta
+			  << std::endl;
+		std::cout  << "           gtrackID " << gtrackID 
+			   << " gvx " << gvx << " gvy " << gvy << " gvz " << gvz << " gphi " << gphi << " geta " << geta 
+			   << std::endl;
+		std::cout << "           gflavor " << gflavor << " vtxID " << vtx->get_id()
+			  << std::endl;
+	      }
+
             PHG4Hit* outerhit = nullptr;
             if (_do_eval_light == false)
               outerhit = trutheval->get_outermost_truth_hit(g4particle);
@@ -3200,6 +3238,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 
         float track_data[] = {(float) _ievent,m_fSeed,
                               trackID,
+			      x,
+			      y,
+			      z,
                               px,
                               py,
                               pz,

@@ -273,7 +273,8 @@ int PHSiliconTpcTrackMatching::Process()
 	  unsigned int vertexId = _tracklet_tpc->get_vertex_id();
 	  if(vertexId == UINT_MAX)  vertexId = 0;
 	  _tracklet_tpc->set_vertex_id(vertexId);
-	  
+
+	  /*
 	  // set the track position to the vertex position
 	  const SvtxVertex *svtxVertex = _vertex_map->get(vertexId);      
 	  if(svtxVertex)
@@ -298,10 +299,13 @@ int PHSiliconTpcTrackMatching::Process()
 	      std::cout << " ---------- TPC track -----------------" << std::endl;
 	      _tracklet_tpc->identify();
 
+	     
 	      _tracklet_tpc->set_x(0.0);
 	      _tracklet_tpc->set_y(0.0);
 	      _tracklet_tpc->set_z(0.0);
+	     
 	    }
+	  */
 	}
 
       // Add the silicon clusters to the track
@@ -333,6 +337,12 @@ int PHSiliconTpcTrackMatching::Process()
 	      unsigned int vertexId = _tracklet_si->get_vertex_id();
 	      _tracklet_tpc->set_vertex_id(vertexId);
 
+	      // set the track position to the si tracklet position
+	      _tracklet_tpc->set_x(_tracklet_si->get_x());
+	      _tracklet_tpc->set_y(_tracklet_si->get_y());
+	      _tracklet_tpc->set_z(_tracklet_si->get_z());
+	    
+	      /*
 	      // set the track position to the vertex position
 	      const SvtxVertex *svtxVertex = _vertex_map->get(vertexId);      
 	      if(svtxVertex)
@@ -357,6 +367,8 @@ int PHSiliconTpcTrackMatching::Process()
 		  _tracklet_tpc->set_y(0.0);
 		  _tracklet_tpc->set_z(0.0);
 		}
+	      */
+
 	      for(auto clus_iter=si_clusters.begin(); clus_iter != si_clusters.end(); ++clus_iter)
 		{
 		  if(Verbosity() > 1) 
@@ -390,6 +402,12 @@ int PHSiliconTpcTrackMatching::Process()
 	      unsigned int vertexId = _tracklet_si->get_vertex_id();
 	      newTrack->set_vertex_id(vertexId);
 
+	      // set track position to the si stub position
+	      newTrack->set_x(_tracklet_si->get_x());
+	      newTrack->set_y(_tracklet_si->get_y());
+	      newTrack->set_z(_tracklet_si->get_z());
+
+	      /*
 	      // set the track position to the vertex position
 	      const SvtxVertex *svtxVertex = _vertex_map->get(vertexId);      
 	      if(svtxVertex)
@@ -409,14 +427,17 @@ int PHSiliconTpcTrackMatching::Process()
 		  newTrack->set_y(0.0);
 		  newTrack->set_z(0.0);
 		}
+	      */
 		      
 	      newTrack->set_charge(_tracklet_tpc->get_charge());
 	      newTrack->set_px(_tracklet_tpc->get_px());
 	      newTrack->set_py(_tracklet_tpc->get_py());
 	      newTrack->set_pz(_tracklet_tpc->get_pz());
+	      /*
 	      newTrack->set_x(_tracklet_tpc->get_x());
 	      newTrack->set_y(_tracklet_tpc->get_y());
 	      newTrack->set_z(_tracklet_tpc->get_z());
+	      */
 	      for(int i = 0; i < 6; ++i)
 		{
 		  for(int j = 0; j < 6; ++j)

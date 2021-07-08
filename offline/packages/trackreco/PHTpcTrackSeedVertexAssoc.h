@@ -47,9 +47,12 @@ class PHTpcTrackSeedVertexAssoc : public PHTrackPropagating
   std::vector<double> GetCircleClusterResiduals(std::vector<std::pair<double,double>> points, double R, double X0, double Y0);
   std::vector<double> GetLineClusterResiduals(std::vector<std::pair<double,double>> points, double A, double B);
   std::vector<TrkrCluster*> getTrackClusters(SvtxTrack *_tracklet_tpc);
-						    
-  std::string _track_map_name_silicon;
+  void findRoot(const double R, const double X0, const double Y0, double& x, double& y);				 
+  double getTrackPhi(SvtxTrack* _tracklet_tpc, std::vector<std::pair<double,double>> cpoints, const double R, const double X0, const double Y0);
+  bool rejectClustersXY(std::vector<std::pair<double,double>> cpoints,  std::vector<TrkrCluster*> clusters, const double R, const double X0, const double Y0);
+  bool rejectClustersZ(std::vector<std::pair<double,double>> points,  std::vector<TrkrCluster*> clusters, double& A, double& B);
 
+  std::string _track_map_name_silicon;
   
   SvtxTrack *_tracklet_tpc{nullptr};
 
@@ -64,6 +67,9 @@ class PHTpcTrackSeedVertexAssoc : public PHTrackPropagating
 
   double _xy_residual_cut = 0.08;
   double _z_residual_cut = 0.22;
+
+  /// Maximum allowed transverse PCA for seed, cm
+  double _maxSeedPCA = 0.1;
 
 };
 

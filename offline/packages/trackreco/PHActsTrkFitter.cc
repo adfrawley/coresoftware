@@ -29,7 +29,6 @@
 #include <phool/PHNodeIterator.h>
 #include <phool/PHObject.h>
 #include <phool/PHTimer.h>
-
 #include <Acts/EventData/TrackParameters.hpp>
 #include <Acts/Surfaces/PerigeeSurface.hpp>
 #include <Acts/Surfaces/PlaneSurface.hpp>
@@ -122,7 +121,7 @@ int PHActsTrkFitter::process_event(PHCompositeNode *topNode)
   eventTimer->restart();
   
   m_event++;
-
+ 
   auto logLevel = Acts::Logging::FATAL;
 
   if (Verbosity() > 1)
@@ -246,7 +245,10 @@ void PHActsTrkFitter::loopTracks(Acts::Logging::Level logLevel)
 			      track->get_py(), 
 			      track->get_pz());
    
-      auto actsVertex = getVertex(track);
+      //auto actsVertex = getVertex(track);
+      Acts::Vector3D actsVertex(track->get_x() * Acts::UnitConstants::cm, 
+			    track->get_y() * Acts::UnitConstants::cm, 
+			    track->get_z() * Acts::UnitConstants::cm);
       auto pSurface = Acts::Surface::makeShared<Acts::PerigeeSurface>(
 					  actsVertex);
       auto actsFourPos = Acts::Vector4D(actsVertex(0), actsVertex(1),
@@ -710,7 +712,8 @@ void PHActsTrkFitter::updateSvtxTrack(Trajectory traj,
 	      track->set_acts_covariance(i,j, params.covariance().value()(i,j));
 	    }
 	}
-    
+
+      /*    
       unsigned int vertexId = track->get_vertex_id();
 
       const SvtxVertex *svtxVertex = m_vertexMap->get(vertexId);
@@ -719,7 +722,13 @@ void PHActsTrkFitter::updateSvtxTrack(Trajectory traj,
 		  svtxVertex->get_x() * Acts::UnitConstants::cm, 
 		  svtxVertex->get_y() * Acts::UnitConstants::cm, 
 		  svtxVertex->get_z() * Acts::UnitConstants::cm);
-   
+      */
+
+      Acts::Vector3D vertex(
+		  track->get_x() * Acts::UnitConstants::cm, 
+		  track->get_y() * Acts::UnitConstants::cm, 
+		  track->get_z() * Acts::UnitConstants::cm);
+
       rotater->calculateDCA(params, vertex, rotatedCov,
 			    m_tGeometry->geoContext, 
 			    dca3Dxy, dca3Dz, 
