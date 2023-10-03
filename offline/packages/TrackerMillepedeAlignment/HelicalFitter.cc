@@ -210,7 +210,8 @@ int HelicalFitter::process_event(PHCompositeNode*)
 	{
 	  // this associates silicon clusters and adds them to the vectors
 	  ntpc = cluskey_vec.size();
-	  nsilicon = TrackFitUtils::addSiliconClusters(fitpars, dca_cut, _tGeometry, _cluster_map, global_vec, cluskey_vec);
+	  //nsilicon = TrackFitUtils::addSiliconClusters(fitpars, dca_cut, _tGeometry, _cluster_map, global_vec, cluskey_vec);
+	  nsilicon = TrackFitUtils::addSiliconClusters(fitpars, dca_cut, _tGeometry, _cluster_map, global_vec, cluskey_vec, ignore_intt_clusters_fit);
 	  if(nsilicon < 3) continue;  // discard this TPC seed, did not get a good match to silicon
 	  auto trackseed = std::make_unique<TrackSeed_v1>();
 	  for(auto& ckey : cluskey_vec)
@@ -278,7 +279,7 @@ int HelicalFitter::process_event(PHCompositeNode*)
 	  if(Verbosity() > 1) { std::cout << " reject this track, ntpc = " << ntpc << std::endl; } 
 	  continue;
 	}
-      if((fitsilicon || fitfulltrack) && nsilicon < 4) 
+      if((fitsilicon || fitfulltrack) && nsilicon < 3) 
 	{
 	  if(Verbosity() > 1) { std::cout << " reject this track, nsilicon = " << nsilicon << std::endl; } 
 	  continue; 
@@ -1244,12 +1245,6 @@ void HelicalFitter::get_projectionVtxXY(SvtxTrack& track, Acts::Vector3 event_vt
   projY = Y - (tanvec.dot(Y) / tanvec.dot(normal)) * normal;
 
   return;
-}
-
-unsigned int HelicalFitter::addSiliconClusters(std::vector<float>& fitpars, std::vector<Acts::Vector3>& global_vec,  std::vector<TrkrDefs::cluskey>& cluskey_vec)
-{
-
-  return TrackFitUtils::addSiliconClusters(fitpars, dca_cut, _tGeometry, _cluster_map, global_vec, cluskey_vec);
 }
 
 bool HelicalFitter::is_intt_layer_fixed(unsigned int layer)

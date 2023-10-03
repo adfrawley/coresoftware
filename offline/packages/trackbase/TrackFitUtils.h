@@ -79,6 +79,14 @@ class TrackFitUtils
 					 std::vector<Acts::Vector3>& global_vec,  
 					 std::vector<TrkrDefs::cluskey>& cluskey_vec);
 
+  static unsigned int addSiliconClusters(std::vector<float>& fitpars, 
+					 double dca_cut,
+					 ActsGeometry* _tGeometry,
+					 TrkrClusterContainer * _cluster_map,
+					 std::vector<Acts::Vector3>& global_vec,  
+					 std::vector<TrkrDefs::cluskey>& cluskey_vec,
+					 bool ignore_intt_clusters_fit);
+
   static Acts::Vector3 get_helix_pca(std::vector<float>& fitpars, Acts::Vector3 global);
 
   static Acts::Vector2 get_circle_point_pca(float radius, float x0, float y0, Acts::Vector3 global);

@@ -71,7 +71,7 @@ class HelicalFitter : public SubsysReco, public PHParameterInterface
   void set_tpc_sector_fixed(unsigned int region, unsigned int sector, unsigned int side);
   void set_layer_param_fixed(unsigned int layer, unsigned int param);
   void set_ntuplefile_name(const std::string& file) { ntuple_outfilename = file;}
-
+  void set_ignore_intt_clusters_fit(bool flag) { ignore_intt_clusters_fit = flag;}
   void set_fitted_subsystems(bool si, bool tpc, bool full) { fitsilicon = si; fittpc = tpc; fitfulltrack = full; }
 
   void set_error_inflation_factor(unsigned int layer, float factor) 
@@ -97,8 +97,7 @@ class HelicalFitter : public SubsysReco, public PHParameterInterface
   void getTrackletClusters(TrackSeed *_track, std::vector<Acts::Vector3>& global_vec, std::vector<TrkrDefs::cluskey>& cluskey_vec);
   Acts::Vector3 get_helix_pca(std::vector<float>& fitpars, Acts::Vector3 global);
   void correctTpcGlobalPositions(std::vector<Acts::Vector3> global_vec,  std::vector<TrkrDefs::cluskey> cluskey_vec);
-  unsigned int addSiliconClusters(std::vector<float>& fitpars, std::vector<Acts::Vector3>& global_vec,  std::vector<TrkrDefs::cluskey>& cluskey_vec);
-
+ 
   void set_dca_cut(float dca) {dca_cut = dca;}
 
  private:
@@ -184,6 +183,8 @@ class HelicalFitter : public SubsysReco, public PHParameterInterface
   bool fitsilicon = true;
   bool fittpc = false;
   bool fitfulltrack = false;
+
+  bool ignore_intt_clusters_fit = false;
 
   float dca_cut = 0.19;  // cm
 

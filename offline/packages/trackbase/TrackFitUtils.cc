@@ -245,6 +245,77 @@ unsigned int TrackFitUtils::addSiliconClusters(std::vector<float>& fitpars,
 }
 
 //_________________________________________________________________________________
+unsigned int TrackFitUtils::addSiliconClusters(std::vector<float>& fitpars, 
+					       double dca_cut,
+					       ActsGeometry* _tGeometry, 
+					       TrkrClusterContainer * _cluster_map,
+					       std::vector<Acts::Vector3>& global_vec,  
+					       std::vector<TrkrDefs::cluskey>& cluskey_vec,
+					       bool ignore_intt_clusters_fit)
+{
+  // project the fit of the TPC clusters to each silicon layer, and find the nearest silicon cluster
+  // iterate over the cluster map and find silicon clusters that match this track fit
+
+  unsigned int nsilicon = 0;
+
+  // We want the best match in each layer
+  std::vector<float> best_layer_dca;
+  best_layer_dca.assign(7, 999.0);
+  std::vector<TrkrDefs::cluskey> best_layer_cluskey;
+  best_layer_cluskey.assign(7, 0);
+
+  for(const auto& hitsetkey:_cluster_map->getHitSetKeys())
+    {
+      auto range = _cluster_map->getClusters(hitsetkey);
+      for( auto clusIter = range.first; clusIter != range.second; ++clusIter )
+	{
+	  TrkrDefs::cluskey cluskey = clusIter->first;
+	  unsigned int layer = TrkrDefs::getLayer(cluskey);
+	  unsigned int trkrid = TrkrDefs::getTrkrId(cluskey);
+	  
+	  if(trkrid != TrkrDefs::mvtxId && trkrid != TrkrDefs::inttId)  continue;
+	  if(trkrid == TrkrDefs::inttId && ignore_intt_clusters_fit) continue;
+	  
+	  TrkrCluster* cluster = clusIter->second;
+	  auto global = _tGeometry->getGlobalPosition(cluskey, cluster);
+
+	  Acts::Vector3 pca = get_helix_pca(fitpars, global);
+	  float dca = (pca - global).norm();
+	  if(trkrid == TrkrDefs::inttId || trkrid == TrkrDefs::mvtxId)
+	    {
+	      Acts::Vector2 global_xy(global(0), global(1));
+	      Acts::Vector2 pca_xy(pca(0), pca(1));
+	      Acts::Vector2 pca_xy_residual = pca_xy - global_xy;
+	      dca = pca_xy_residual.norm();
+	    }
+
+	  if(dca < best_layer_dca[layer])
+	    {
+	      best_layer_dca[layer] = dca;
+	      best_layer_cluskey[layer] = cluskey;
+	    }
+	}  // end cluster iteration
+    } // end hitsetkey iteration
+
+  for(unsigned int layer = 0; layer < 7; ++layer)
+    {
+      if(best_layer_dca[layer] < dca_cut)
+	{
+	  if(best_layer_cluskey[layer] != 0)
+          {
+            cluskey_vec.push_back(best_layer_cluskey[layer]);
+	    auto clus =  _cluster_map->findCluster(best_layer_cluskey[layer]);
+	    auto global = _tGeometry->getGlobalPosition(best_layer_cluskey[layer], clus);
+	    global_vec.push_back(global);
+	    nsilicon++;
+          }
+	}
+    }
+
+  return nsilicon;
+}
+
+//_________________________________________________________________________________
 Acts::Vector3 TrackFitUtils::get_helix_pca(std::vector<float>& fitpars, 
 					   Acts::Vector3 global)
 {
