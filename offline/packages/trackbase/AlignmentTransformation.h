@@ -133,6 +133,7 @@ void setTPCParams(double tpcDevs[6])
   
   int getNodes(PHCompositeNode* topNode);
 
+  std::ofstream transform_out_file; 
 };
 
 #endif

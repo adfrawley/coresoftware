@@ -32,6 +32,9 @@
 
 void AlignmentTransformation::createMap(PHCompositeNode* topNode)
 { 
+  transform_out_file.open("transform_out_file.txt",std::ofstream::out);
+  std::cout << " *********** Created transform_out_file.txt" << std::endl;
+
   // The default is to use translation parameters that are in global coordinates
   use_global_millepede_translations = true;
   std::cout << "AlignmentTransformation: use global translation perturbations = " << use_global_millepede_translations  << std::endl;
@@ -126,6 +129,11 @@ void AlignmentTransformation::createMap(PHCompositeNode* topNode)
 	   }
 
 	 transformMap->addTransform(id,transform);
+
+	// optionally, dump the transform to a file
+	 std::cout << " Write transform to file for hitsetkey " << hitsetkey << std::endl;
+	transform_out_file << hitsetkey << std::endl;
+	transform_out_file << transform.matrix() << std::endl;
        }
 
 
@@ -202,7 +210,8 @@ void AlignmentTransformation::createMap(PHCompositeNode* topNode)
  // map is created, now we can use the transforms
  alignmentTransformationContainer::use_alignment = true;
 
- 
+ std::cout << "close transform_text_file" << std::endl;
+ transform_out_file.close(); 
 }
 
 // currently used as the transform maker
