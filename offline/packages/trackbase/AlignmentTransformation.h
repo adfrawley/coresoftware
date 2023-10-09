@@ -105,6 +105,7 @@ void setTPCParams(double tpcDevs[6])
  void verbosity() { localVerbosity = 1;}
  void misalignmentFactor(uint8_t layer, const double factor);
  void useInttSurveyGeometry(bool sur) { use_intt_survey_geometry = sur;} 
+ void set_dump_transforms_file(bool flag) {dump_transforms_file = flag;}
 
  private:
 
@@ -133,7 +134,8 @@ void setTPCParams(double tpcDevs[6])
   
   int getNodes(PHCompositeNode* topNode);
 
-  std::ofstream transform_out_file; 
+  bool dump_transforms_file = false;
+  std::ofstream transforms_out_file; 
 };
 
 #endif
