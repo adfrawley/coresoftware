@@ -6,7 +6,6 @@
 #include <trackbase_historic/SvtxTrackMap.h>
 #include <trackbase_historic/TrackSeedContainer_v1.h>
 #include <trackbase_historic/TrackSeed_v1.h>
-#include <trackermillepedealignment/HelicalFitter.h>
 
 #include <fun4all/SubsysReco.h>
 
@@ -32,8 +31,8 @@ class helixResiduals : public SubsysReco
   int getNodes(PHCompositeNode* topNode);
 
   void fill_residuals(TrackSeed* seed, int seed_id, bool isTpc);
+  void getTrackletClusterList(TrackSeed *tracklet, std::vector<TrkrDefs::cluskey>& cluskey_vec);
 
-  HelicalFitter* _fitter = nullptr;
   ActsGeometry* tGeometry = nullptr;
 
   TNtuple* ntp_residuals = nullptr;

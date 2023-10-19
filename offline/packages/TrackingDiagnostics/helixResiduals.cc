@@ -4,6 +4,7 @@
 #include <phool/PHCompositeNode.h>
 #include <phool/getClass.h>
 #include <trackbase/TrkrDefs.h>
+#include <trackbase/TrackFitUtils.h>
 
 #include <TFile.h>
 #include <TNtuple.h>
@@ -11,15 +12,13 @@
 helixResiduals::helixResiduals(const std::string &name)
   : SubsysReco(name)
 {
-  _fitter = new HelicalFitter;
 }
 
 int helixResiduals::InitRun(PHCompositeNode *topNode)
 {
-  _fitter->InitRun(topNode);
   const char *cfilepath = filepath.c_str();
   fout = new TFile(cfilepath, "recreate");
-  ntp_residuals = new TNtuple("ntp_residuals", "Seed Residuals", "seed_id:layer:dphi:dz:x:y:z:pt:px:py:pz:crossing:isSilicon:isTpc");
+  ntp_residuals = new TNtuple("ntp_residuals", "Seed Residuals", "seed_id:layer:nclus:dphi:dx:dy:dz:pcax:pcay:pcaz:x:y:z:pt:px:py:pz:crossing:isSilicon:isTpc");
 
   getNodes(topNode);
 
@@ -31,8 +30,6 @@ int helixResiduals::End(PHCompositeNode * /**topNode*/)
   fout->cd();
   ntp_residuals->Write();
   fout->Close();
-
-  delete _fitter;
 
   return 0;
 }
@@ -82,7 +79,6 @@ int helixResiduals::process_event(PHCompositeNode * /*topNode*/)
     {
       continue;
     }
-    std::cout << "processing tpc seed " << id << std::endl;
     fill_residuals(tpcseed, id, true);
   }
   for (auto siseed_iter = _si_seeds->begin(); siseed_iter != _si_seeds->end(); ++siseed_iter)
@@ -93,10 +89,9 @@ int helixResiduals::process_event(PHCompositeNode * /*topNode*/)
     {
       continue;
     }
-    std::cout << "processing si seed " << id << std::endl;
     fill_residuals(siseed, id, false);
   }
-  std::cout << "done" << std::endl;
+
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
@@ -109,8 +104,19 @@ void helixResiduals::fill_residuals(TrackSeed *seed, int seed_id, bool isTpc)
 
   std::vector<Acts::Vector3> clusterPositions;
   std::vector<TrkrDefs::cluskey> clusterKeys;
-  _fitter->getTrackletClusters(seed, clusterPositions, clusterKeys);
-  std::vector<float> fitparams = _fitter->fitClusters(clusterPositions, clusterKeys);
+  getTrackletClusterList(seed, clusterKeys); 
+  auto nclus = clusterKeys.size();
+  // A silicon seed with 3 clusters is not useful
+  // the helical fit will be close to perfect if there are only 3 clusters
+  if(nclus < 5) return;
+
+ TrackFitUtils::getTrackletClusters(tGeometry, _clusters, clusterPositions, clusterKeys);   
+  std::vector<float> fitparams = TrackFitUtils::fitClusters(clusterPositions, clusterKeys);
+  if(fitparams.size() == 0) 
+    {
+      std::cout << "Fit failed " << std::endl;
+      return;
+    }
 
   float pt = seed->get_pt();
   float px = seed->get_px(_clusters, tGeometry);
@@ -122,7 +128,7 @@ void helixResiduals::fill_residuals(TrackSeed *seed, int seed_id, bool isTpc)
   {
     unsigned int layer = TrkrDefs::getLayer(clusterKeys[i]);
     Acts::Vector3 position = clusterPositions[i];
-    Acts::Vector3 pca = _fitter->get_helix_pca(fitparams, position);
+   Acts::Vector3 pca = TrackFitUtils::get_helix_pca(fitparams, position);
     float cluster_phi = atan2(position(1), position(0));
     float pca_phi = atan2(pca(1), pca(0));
     float dphi = cluster_phi - pca_phi;
@@ -134,8 +140,54 @@ void helixResiduals::fill_residuals(TrackSeed *seed, int seed_id, bool isTpc)
     {
       dphi = 2 * M_PI + dphi;
     }
+    float dx = position(0) - pca(0);
+    float dy = position(1) - pca(1);
     float dz = position(2) - pca(2);
+    float pcax = pca(0);
+    float pcay = pca(1);
+    float pcaz = pca(2);
+    float x = position(0);
+    float y = position(1);
+    float z = position(2);
 
-    ntp_residuals->Fill(seed_id, layer, dphi, dz, position(0), position(1), position(2), pt, px, py, pz, crossing, !isTpc, isTpc);
+    if(Verbosity() > 0)
+      {
+	std::cout << "   layer " << layer << " nclus " << nclus << " position(microns) " << position(0)*10000 << "  " << position(1)*10000 << "  " << position(2)*10000 << " pca " << pca(0)*10000 << "  " << pca(1)*10000 << "  " << pca(2)*10000 << " dx " << dx*10000 << "  dy " << dy*1000 << " dz " << dz*10000 << std::endl;
+      }
+
+    float data[20] = {(float)seed_id, (float)layer, (float)nclus, dphi, dx, dy, dz, pcax, pcay, pcaz, x, y, z, pt, px, py, pz, (float)crossing, (float)!isTpc, (float)isTpc};
+
+    ntp_residuals->Fill(data);
   }
+}
+
+void helixResiduals::getTrackletClusterList(TrackSeed *tracklet, std::vector<TrkrDefs::cluskey>& cluskey_vec)
+{
+  for (auto clusIter = tracklet->begin_cluster_keys();
+       clusIter != tracklet->end_cluster_keys();
+       ++clusIter)
+    {
+      auto key = *clusIter;
+      auto cluster = _clusters->findCluster(key);
+      if(!cluster)
+	{
+	  std::cout << "Failed to get cluster with key " << key << std::endl;
+	  continue;
+	}	  
+      
+      /// Make a safety check for clusters that couldn't be attached to a surface
+      auto surf = tGeometry->maps().getSurface(key, cluster);
+      if(!surf)  
+	{
+	  std::cout << "Failed to find surface for cluster key " << key << std::endl; 
+	  continue; 
+	}
+
+      // drop some bad layers in the TPC completely
+      unsigned int layer = TrkrDefs::getLayer(key);
+      if(layer == 7 || layer == 22 || layer == 23 || layer == 38 || layer == 39) {continue;}
+
+      cluskey_vec.push_back(key);
+      
+    } // end loop over clusters for this track 
 }
