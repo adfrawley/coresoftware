@@ -46,7 +46,7 @@ int helixResiduals::InitRun(PHCompositeNode *topNode)
     {
       for(int ipar = 0; ipar < 6; ++ipar)
 	{
-	  double range = 1.0;  // mm
+	  double range = 0.5;  // mm
 	  double range_angles = 0.03;  // rad
 	  if( ilayer > 6 && ilayer < 56 )
 	    {
@@ -55,6 +55,11 @@ int helixResiduals::InitRun(PHCompositeNode *topNode)
 	      else 
 		range = 2.0;
 	    }
+	  if( ilayer > 2 && ilayer < 7 )
+	    {
+              if(ipar == 5)
+                range = 20.0;
+            }
 	  if(ipar < 3) range = range_angles;
 	  
 	  char name[500];
