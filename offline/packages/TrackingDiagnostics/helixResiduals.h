@@ -3,6 +3,7 @@
 
 #include <trackbase/ActsTrackingGeometry.h>
 #include <trackbase/TrkrClusterContainerv4.h>
+#include <trackbase/TrkrDefs.h>
 #include <trackbase_historic/SvtxTrackMap.h>
 #include <trackbase_historic/TrackSeedContainer_v1.h>
 #include <trackbase_historic/TrackSeed_v1.h>
@@ -10,7 +11,8 @@
 #include <fun4all/SubsysReco.h>
 
 class TFile;
-class TNtuple;
+class TTree;
+class TH2D;
 
 class PHCompositeNode;
 class SvtxTrack;
@@ -32,10 +34,11 @@ class helixResiduals : public SubsysReco
 
   void fill_residuals(TrackSeed* seed, int seed_id, bool isTpc);
   void getTrackletClusterList(TrackSeed *tracklet, std::vector<TrkrDefs::cluskey>& cluskey_vec);
+  unsigned int getSensor(TrkrDefs::hitsetkey hitsetkey);
 
   ActsGeometry* tGeometry = nullptr;
 
-  TNtuple* ntp_residuals = nullptr;
+  //  TNtuple* ntp_residuals = nullptr;
 
   SvtxTrackMap* _tracks = nullptr;
   TrkrClusterContainer* _clusters = nullptr;
@@ -45,6 +48,17 @@ class helixResiduals : public SubsysReco
   TFile* fout = nullptr;
 
   std::string filepath = "";
+
+  float clusx,clusy,clusz,pcax,pcay,pcaz,pt,px,py,pz;
+  int seed_id, isTpc,nclus;
+  int crossing;
+  unsigned int layer;
+  TrkrDefs::cluskey cluskey;
+  TrkrDefs::hitsetkey hitsetkey;
+
+  TTree *tree_residuals;
+  TH2D *hpar[57][6];
+
 };
 
 #endif  // HELIXRESIDUALS_H
