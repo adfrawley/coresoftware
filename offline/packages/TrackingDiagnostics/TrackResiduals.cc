@@ -2107,7 +2107,10 @@ void TrackResiduals::fillEventTree(PHCompositeNode* topNode)
   m_nsiseed = 0;
   m_ntpcseed = 0;
 
-  m_nsiseed = silseedmap->size();
+  if(silseedmap)
+    {
+      m_nsiseed = silseedmap->size();
+    }
   m_ntpcseed = tpcseedmap->size();
   m_ntracks_all = trackmap->size();
 
