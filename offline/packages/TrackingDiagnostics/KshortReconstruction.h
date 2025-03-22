@@ -54,14 +54,15 @@ class KshortReconstruction : public SubsysReco
   void setPairDCACut(double cut) { pair_dca_cut = cut; }
   void setTrackDCACut(double cut) { track_dca_cut = cut; }
   void setRequireMVTX(bool set) { _require_mvtx = set; }
-  void setDecayMass(Float_t decayMassSet) { decaymass = decayMassSet; }  //(muons decaymass = 0.1057) (pions = 0.13957) (electron = 0.000511)
+  void setDecayMass1(Float_t decayMassSet) { decaymass1 = decayMassSet; }  //(muons decaymass = 0.1057) (pions = 0.13957) (electron = 0.000511)
+    void setDecayMass2(Float_t decayMassSet) { decaymass2 = decayMassSet; }  //(muons decaymass = 0.1057) (pions = 0.13957) (electron = 0.000511)
   void set_output_file(const std::string& outputfile) { filepath = outputfile; }
   void save_tracks(bool save = true) { m_save_tracks = save; }
 
  private:
   void fillNtp(SvtxTrack* track1, SvtxTrack* track2, Acts::Vector3 dcavals1, Acts::Vector3 dcavals2, Acts::Vector3 pca_rel1, Acts::Vector3 pca_rel2, double pair_dca, double invariantMass, double invariantPt, float invariantPhi, float rapidity, float pseudorapidity, Eigen::Vector3d projected_pos1, Eigen::Vector3d projected_pos2, Eigen::Vector3d projected_mom1, Eigen::Vector3d projected_mom2, Acts::Vector3 pca_rel1_proj, Acts::Vector3 pca_rel2_proj, double pair_dca_proj,unsigned int track1_silicon_cluster_size, unsigned int track2_silicon_cluster_size, unsigned int track1_mvtx_cluster_size, unsigned int track1_mvtx_state_size, unsigned int track1_intt_cluster_size, unsigned int track1_intt_state_size, unsigned int track2_mvtx_cluster_size, unsigned int track2_mvtx_state_size, unsigned int track2_intt_cluster_size, unsigned int track2_intt_state_size, int runNumber, int eventNumber);
 
-  void fillHistogram(Eigen::Vector3d mom1, Eigen::Vector3d mom2, TH1D* massreco, double& invariantMass, double& invariantPt, float& invariantPhi, float& rapidity, float& pseudorapidity);
+  void fillHistogram(Eigen::Vector3d mom1, Eigen::Vector3d mom2, TH1D* massreco, double& invariantMass, double& invariantPt, float& invariantPhi, float& rapidity, float& pseudorapidity, float& decaymass1, float& decaymass2);
 
   // void findPcaTwoTracks(SvtxTrack *track1, SvtxTrack *track2, Acts::Vector3& pca1, Acts::Vector3& pca2, double& dca);
   void findPcaTwoTracks(const Acts::Vector3& pos1, const Acts::Vector3& pos2, Acts::Vector3 mom1, Acts::Vector3 mom2, Acts::Vector3& pca1, Acts::Vector3& pca2, double& dca);
@@ -82,7 +83,8 @@ class KshortReconstruction : public SubsysReco
   SvtxVertexMap* m_vertexMap = nullptr;
   
   std::string filepath = "";
-  Float_t decaymass = 0.13957;  // pion decay mass
+  Float_t decaymass1 = 0.13957;  // pion decay mass
+  Float_t decaymass2 = 0.13957;  // pion decay mass
   bool _require_mvtx = true;
   double _qual_cut = 1000.0;
   double pair_dca_cut = 0.05;  // kshort relative cut 500 microns
