@@ -4,33 +4,12 @@
 #include <fun4all/SubsysReco.h>
 
 #include <trackbase/ActsTrackingGeometry.h>
-#include <trackbase/TpcDefs.h>
-#include <trackbase/TrkrDefs.h>
-
-#include <globalvertex/SvtxVertexMap.h>
-#include <trackbase_historic/SvtxTrackMap.h>
-
-#include <Acts/Definitions/Algebra.hpp>
-
-#include <Acts/EventData/TrackParameters.hpp>
-#include <Acts/Surfaces/CylinderSurface.hpp>
-#include <Acts/Utilities/Result.hpp>
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-#include <ActsExamples/EventData/Trajectories.hpp>
-#pragma GCC diagnostic pop
 
 #include <Eigen/Dense>
 
 class TFile;
-class TH1D;
+class TH1;
 class TNtuple;
-
-using BoundTrackParam = const Acts::BoundTrackParameters;
-using BoundTrackParamResult = Acts::Result<BoundTrackParam>;
-using SurfacePtr = std::shared_ptr<const Acts::Surface>;
-using Trajectory = ActsExamples::Trajectories;
 
 class ActsGeometry;
 class PHCompositeNode;
@@ -42,7 +21,7 @@ class KshortReconstruction : public SubsysReco
 {
  public:
   KshortReconstruction(const std::string& name = "KshortReconstruction");
-  virtual ~KshortReconstruction() {}
+  virtual ~KshortReconstruction() = default;
 
   int InitRun(PHCompositeNode* topNode) override;
   int process_event(PHCompositeNode* topNode) override;
@@ -65,7 +44,7 @@ class KshortReconstruction : public SubsysReco
   void fillHistogram(Eigen::Vector3d mom1, Eigen::Vector3d mom2, TH1D* massreco, double& invariantMass, double& invariantPt, float& invariantPhi, float& rapidity, float& pseudorapidity, float& decaymass1, float& decaymass2);
 
   // void findPcaTwoTracks(SvtxTrack *track1, SvtxTrack *track2, Acts::Vector3& pca1, Acts::Vector3& pca2, double& dca);
-  void findPcaTwoTracks(const Acts::Vector3& pos1, const Acts::Vector3& pos2, Acts::Vector3 mom1, Acts::Vector3 mom2, Acts::Vector3& pca1, Acts::Vector3& pca2, double& dca);
+  void findPcaTwoTracks(const Acts::Vector3& pos1, const Acts::Vector3& pos2, Acts::Vector3 mom1, Acts::Vector3 mom2, Acts::Vector3& pca1, Acts::Vector3& pca2, double& dca) const;
 
   int getNodes(PHCompositeNode* topNode);
 
@@ -75,12 +54,12 @@ class KshortReconstruction : public SubsysReco
   bool projectTrackToPoint(SvtxTrack* track, Eigen::Vector3d PCA, Eigen::Vector3d& pos, Eigen::Vector3d& mom);
 
   Acts::Vector3 getVertex(SvtxTrack* track);
-  std::vector<unsigned int> getTrackStates(SvtxTrack *track);
+  static std::vector<unsigned int> getTrackStates(SvtxTrack *track);
   
-  TNtuple* ntp_reco_info = nullptr;
-  ActsGeometry* _tGeometry = nullptr;
-  SvtxTrackMap* m_svtxTrackMap = nullptr;
-  SvtxVertexMap* m_vertexMap = nullptr;
+  TNtuple* ntp_reco_info {nullptr};
+  ActsGeometry* _tGeometry {nullptr};
+  SvtxTrackMap* m_svtxTrackMap {nullptr};
+  SvtxVertexMap* m_vertexMap {nullptr};
   
   std::string filepath = "";
   Float_t decaymass1 = 0.13957;  // pion decay mass
@@ -94,9 +73,9 @@ class KshortReconstruction : public SubsysReco
   TFile* fout = nullptr;
   TH1D* recomass = nullptr;
 
-  bool m_save_tracks = false;
-  SvtxTrackMap *m_output_trackMap = nullptr;
-  std::string m_output_trackMap_node_name = "KshortReconstruction_SvtxTrackMap";
+  bool m_save_tracks {false};
+  SvtxTrackMap *m_output_trackMap {nullptr};
+  std::string m_output_trackMap_node_name {"KshortReconstruction_SvtxTrackMap"};
 };
 
 #endif  // KSHORTRECONSTRUCTION_H

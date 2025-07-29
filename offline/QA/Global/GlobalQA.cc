@@ -52,7 +52,6 @@ GlobalQA::GlobalQA(const std::string &name)
 
 GlobalQA::~GlobalQA()
 {
-  delete cdbttree2;
 }
 
 int GlobalQA::Init(PHCompositeNode * /*unused*/)
@@ -61,60 +60,7 @@ int GlobalQA::Init(PHCompositeNode * /*unused*/)
   {
     std::cout << "In GlobalQA::Init" << std::endl;
   }
-  CDBTTree *cdbttree{nullptr};
-  if (!m_overrideSEPDMapName)
-  {
-    m_sEPDMapName = "SEPD_CHANNELMAP";
-  }
-  if (!m_overrideSEPDFieldName)
-  {
-    m_sEPDfieldname = "epd_channel_map";
-  }
-  std::string calibdir = CDBInterface::instance()->getUrl(m_sEPDMapName);
-  if (!calibdir.empty())
-  {
-    cdbttree = new CDBTTree(calibdir);
-  }
-  else
-  {
-    std::cout << "GlobalQA::::InitRun No SEPD mapping file for domain "
-              << m_sEPDMapName << " found" << std::endl;
-    gSystem->Exit(1);
-  }
-  v.clear();
-  for (int i = 0; i < 768; i++)
-  {
-    int keymap = cdbttree->GetIntValue(i, m_sEPDfieldname);
-    if (keymap == 999)
-    {
-      continue;
-    }
-
-    key = TowerInfoDefs::encode_epd(keymap);
-    v.push_back(key);
-  }
-  delete cdbttree;
-
-  if (!m_overrideSEPDADCName)
-  {
-    m_sEPDADCName = "SEPD_ADC_CHANNELS";
-  }
-  if (!m_overrideSEPDADCFieldName)
-  {
-    m_sEPDADCfieldname = "towerinfo_to_adc_channel";
-  }
-  std::string ADCdir = CDBInterface::instance()->getUrl(m_sEPDADCName);
-  if (!ADCdir.empty())
-  {
-    cdbttree2 = new CDBTTree(ADCdir);
-  }
-  else
-  {
-    std::cout << "GlobalQA::::InitRun No SEPD ADC file for domain "
-              << m_sEPDADCName << " found" << std::endl;
-    gSystem->Exit(1);
-  }
-
+ 
   createHistos();
 
   if (m_debug)
@@ -141,10 +87,14 @@ int GlobalQA::process_towers(PHCompositeNode *topNode)
   }
 
   //--------------------------- trigger and GL1-------------------------------//
-  Gl1Packet *gl1PacketInfo = findNode::getClass<Gl1Packet>(topNode, "GL1Packet");
+  Gl1Packet *gl1PacketInfo = findNode::getClass<Gl1Packet>(topNode, 14001);
   if (!gl1PacketInfo)
   {
-    std::cout << PHWHERE << "GlobalQA::process_event: GL1Packet node is missing" << std::endl;
+    gl1PacketInfo = findNode::getClass<Gl1Packet>(topNode, "GL1Packet");
+    if (!gl1PacketInfo)
+    {
+      std::cout << PHWHERE << "GlobalQA::process_event: GL1Packet node is missing" << std::endl;
+    }
   }
 
   uint64_t triggervec = 0;
@@ -194,26 +144,8 @@ int GlobalQA::process_towers(PHCompositeNode *topNode)
   }
 
   //--------------------------- sEPD ------------------------------//
-  if (_eventcounter == 1)
-  {
-    for (unsigned int i = 0; i < 744; i++)
-    {
-      float rbin = (float) (TowerInfoDefs::get_epd_rbin(v[i]));
-      float phibin = (float) (TowerInfoDefs::get_epd_phibin(v[i]));
-      int adc_channel = cdbttree2->GetIntValue(i, m_sEPDADCfieldname);
-      int arm = TowerInfoDefs::get_epd_arm(v[i]);
-      if (arm == 0)
-      {
-        h2_GlobalQA_sEPD_ADC_channel_south->Fill(rbin, phibin, adc_channel);
-      }
-      else if (arm == 1)
-      {
-        h2_GlobalQA_sEPD_ADC_channel_north->Fill(rbin, phibin, adc_channel);
-      }
-    }
-  }
-
-  if ((triggervec >> 0xAU) & 0x1U)
+  
+  if (triggervec & mbdtrig)  // Any MBD trigger (bits 10-15)
   {
     //--------------------------- sEPD ------------------------------//
     TowerInfoContainer *_sepd_towerinfo = findNode::getClass<TowerInfoContainer>(topNode, "TOWERS_SEPD");
@@ -234,18 +166,15 @@ int GlobalQA::process_towers(PHCompositeNode *topNode)
     {
       for (unsigned int i = 0; i < ntowers; i++)
       {
-        float _time = _sepd_towerinfo->get_tower_at_channel(i)->get_time_float();
-        float _e = _sepd_towerinfo->get_tower_at_channel(i)->get_energy();
-        int arm = TowerInfoDefs::get_epd_arm(v[i]);
-        float rbin = (float) (TowerInfoDefs::get_epd_rbin(v[i]));
-        float phibin = (float) (TowerInfoDefs::get_epd_phibin(v[i]));
-
-        if (_time > 0.)
+        TowerInfo *_tower = _sepd_towerinfo->get_tower_at_channel(i);
+        float _e = _tower->get_energy();
+        bool isZS = _tower->get_isZS();
+        unsigned int key = TowerInfoDefs::encode_epd(i);
+        int arm = TowerInfoDefs::get_epd_arm(key);
+        float rbin = (float) (TowerInfoDefs::get_epd_rbin(key));
+        float phibin = (float) (TowerInfoDefs::get_epd_phibin(key));
+        if (!isZS)
         {
-          h_GlobalQA_sEPD_tile[i]->Fill(_e);
-          if ((i != 29) && (i != 153) &&
-              (i != 649))  // skip problematic channels
-          {
             if (arm == 0)
             {
               sepdsouthadcsum += _e;
@@ -256,7 +185,6 @@ int GlobalQA::process_towers(PHCompositeNode *topNode)
               sepdnorthadcsum += _e;
               h2Profile_GlobalQA_sEPD_tiles_north->Fill(rbin, phibin, _e);
             }
-          }
         }
       }
 
@@ -511,15 +439,15 @@ void GlobalQA::createHistos()
 
   // sEPD QA
   h_GlobalQA_sEPD_adcsum_s = new TH1D(
-      "h_GlobalQA_sEPD_adcsum_s", " ; sEPD ADC sum ; Counts", 100, -10, 50000);
+      "h_GlobalQA_sEPD_adcsum_s", " ; sEPD ADC sum ; Counts", 200, 0, 6e6);
 
   h_GlobalQA_sEPD_adcsum_n = new TH1D(
-      "h_GlobalQA_sEPD_adcsum_n", " ; sEPD ADC sum ; Counts", 100, -10, 50000);
+      "h_GlobalQA_sEPD_adcsum_n", " ; sEPD ADC sum ; Counts", 200, 0, 6e6);
 
   h2_GlobalQA_sEPD_adcsum_ns =
       new TH2D("h2_GlobalQA_sEPD_adcsum_ns",
                "sEPD NS ADC sum correlation ; ADC sum (south); ADC sum (north)",
-               100, -10, 50000, 100, -10, 50000);
+               500, 0, 6e6, 500, 0, 6e6);
 
   h2Profile_GlobalQA_sEPD_tiles_north =
       new TProfile2D("h2Profile_GlobalQA_sEPD_tiles_north",
@@ -540,14 +468,6 @@ void GlobalQA::createHistos()
                "h2_GlobalQA_sEPD_ADC_channel_north ; #eta; #phi", 16, -0.5,
                15.5, 24, -0.5, 23.5);
 
-  for (int tile = 0; tile < 744; tile++)
-  {
-    h_GlobalQA_sEPD_tile[tile] = new TH1D(
-        boost::str(boost::format("h_GlobalQA_sEPD_tile%d") % tile).c_str(), "",
-        20016, -15.5, 20000.5);
-
-    hm->registerHisto(h_GlobalQA_sEPD_tile[tile]);
-  }
 
   hm->registerHisto(h_GlobalQA_sEPD_adcsum_s);
   hm->registerHisto(h_GlobalQA_sEPD_adcsum_n);

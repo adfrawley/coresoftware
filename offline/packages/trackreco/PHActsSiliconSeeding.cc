@@ -36,7 +36,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-overread"
 #endif
-#include <Acts/Seeding/BinnedSPGroup.hpp>
+#include <Acts/Seeding/BinnedGroup.hpp>
 #ifndef __clang__
 #pragma GCC diagnostic pop
 #endif
@@ -95,10 +95,11 @@ int PHActsSiliconSeeding::Init(PHCompositeNode* /*topNode*/)
     printSeedConfigs(sfCfg);
   }
   // vector containing the map of z bins in the top and bottom layers
-  m_bottomBinFinder = std::make_shared<const Acts::BinFinder<SpacePoint>>(
-      zBinNeighborsBottom, nphineighbors);
-  m_topBinFinder = std::make_shared<const Acts::BinFinder<SpacePoint>>(
-      zBinNeighborsTop, nphineighbors);
+ 
+  m_bottomBinFinder = std::make_unique<const Acts::GridBinFinder<2ul>>(
+      nphineighbors, zBinNeighborsBottom);
+  m_topBinFinder = std::make_unique<const Acts::GridBinFinder<2ul>>(
+      nphineighbors, zBinNeighborsTop);
 
   if (m_seedAnalysis)
   {
@@ -133,6 +134,9 @@ int PHActsSiliconSeeding::process_event(PHCompositeNode* topNode)
       std::cerr << PHWHERE << "Cluster Iteration Map missing, aborting." << std::endl;
       return Fun4AllReturnCodes::ABORTEVENT;
     }
+  } else {
+    // reset seed container on first iteration
+    m_seedContainer->Reset();
   }
 
   if (Verbosity() > 0)
@@ -175,7 +179,7 @@ int PHActsSiliconSeeding::End(PHCompositeNode* /*topNode*/)
 
 void PHActsSiliconSeeding::runSeeder()
 {
-  Acts::SeedFinder<SpacePoint> seedFinder(m_seedFinderCfg);
+  Acts::SeedFinder<SpacePoint,Acts::CylindricalSpacePointGrid<SpacePoint>> seedFinder(m_seedFinderCfg);
 
   auto eventTimer = std::make_unique<PHTimer>("eventTimer");
   eventTimer->stop();
@@ -186,15 +190,14 @@ void PHActsSiliconSeeding::runSeeder()
   {
     GridSeeds seedVector;
     /// Covariance converter functor needed by seed finder
-    auto covConverter =
-        [=](const SpacePoint& sp, float zAlign, float rAlign, float sigmaError)
-        -> std::pair<Acts::Vector3, Acts::Vector2>
+    auto covConverter = [=](const SpacePoint& sp, float zAlign, float rAlign,
+                                       float sigmaError)
     {
       Acts::Vector3 position{sp.x(), sp.y(), sp.z()};
       Acts::Vector2 cov;
       cov[0] = (sp.m_varianceR + rAlign * rAlign) * sigmaError;
       cov[1] = (sp.m_varianceZ + zAlign * zAlign) * sigmaError;
-      return std::make_pair(position, cov);
+      return std::make_tuple(position, cov, sp.t());
     };
 
     Acts::Extent rRangeSPExtent;
@@ -207,20 +210,21 @@ void PHActsSiliconSeeding::runSeeder()
       h_nInputMeas->Fill(spVec.size());
     }
 
-    auto grid =
-        Acts::SpacePointGridCreator::createGrid<SpacePoint>(m_gridCfg,
-                                                            m_gridOptions);
+    Acts::CylindricalSpacePointGrid<SpacePoint> grid =
+        Acts::CylindricalSpacePointGridCreator::createGrid<SpacePoint>(
+            m_gridCfg, m_gridOptions);
+    Acts::CylindricalSpacePointGridCreator::fillGrid(
+        m_seedFinderCfg, m_seedFinderOptions, grid,
+        spVec.begin(), spVec.end(), covConverter,
+        rRangeSPExtent);
 
-    auto spGroup = Acts::BinnedSPGroup<SpacePoint>(spVec.begin(),
-                                                   spVec.end(),
-                                                   covConverter,
-                                                   m_bottomBinFinder,
-                                                   m_topBinFinder,
-                                                   std::move(grid),
-                                                   rRangeSPExtent,
-                                                   m_seedFinderCfg,
-                                                   m_seedFinderOptions);
+    std::array<std::vector<std::size_t>, 2ul> navigation;
+    navigation[1ul] = m_seedFinderCfg.zBinsCustomLooping;
 
+    auto spacePointsGrouping = Acts::CylindricalBinnedGroup<SpacePoint>(
+        std::move(grid), *m_bottomBinFinder, *m_topBinFinder,
+        std::move(navigation));
+   
     /// variable middle SP radial region of interest
     const Acts::Range1D<float> rMiddleSPRange(
         std::floor(rRangeSPExtent.min(Acts::binR) / 2) * 2 + 1.5,
@@ -234,10 +238,10 @@ void PHActsSiliconSeeding::runSeeder()
     decltype(seedFinder)::SeedingState state;
     state.spacePointData.resize(spVec.size(),
                                 m_seedFinderCfg.useDetailedDoubleMeasurementInfo);
-    for (const auto [bottom, middle, top] : spGroup)
+    for (const auto [bottom, middle, top] : spacePointsGrouping)
     {
       seedFinder.createSeedsForGroup(m_seedFinderOptions,
-                                     state, spGroup.grid(),
+                                     state, spacePointsGrouping.grid(),
                                      std::back_inserter(seeds),
                                      bottom,
                                      middle,
@@ -276,17 +280,17 @@ void PHActsSiliconSeeding::runSeeder()
   return;
 }
 
-void PHActsSiliconSeeding::makeSvtxTracks(GridSeeds& seedVector)
+void PHActsSiliconSeeding::makeSvtxTracks(const GridSeeds& seedVector)
 {
   int numSeeds = 0;
   int numGoodSeeds = 0;
   m_seedid = -1;
   int strobe = m_lowStrobeIndex;
   /// Loop over grid volumes. In our case this will be strobe
-  for (auto& seeds : seedVector)
+  for (const auto& seeds : seedVector)
   {
     /// Loop over actual seeds in this grid volume
-    for (auto& seed : seeds)
+    for (const auto& seed : seeds)
     {
       if (Verbosity() > 1)
       {
@@ -667,7 +671,7 @@ std::vector<TrkrDefs::cluskey> PHActsSiliconSeeding::findMatches(
         for (auto clusIter = range.first; clusIter != range.second; ++clusIter)
         {
           const auto cluskey = clusIter->first;
-          if (_iteration_map != nullptr && m_nIteration > 0)
+          if (_iteration_map && m_nIteration > 0)
           {
             if (_iteration_map->getIteration(cluskey) < m_nIteration)
             {
@@ -842,7 +846,7 @@ SpacePointPtr PHActsSiliconSeeding::makeSpacePoint(
    * uncertainties by a tuned factor that gives the v17 performance
    * Track reconstruction is an art as much as it is a science...
    */
-  SpacePointPtr spPtr(new SpacePoint{key, x, y, z, r, surf->geometryId(), var[0] * m_uncfactor, var[1] * m_uncfactor});
+  SpacePointPtr spPtr(new SpacePoint{key, x, y, z, r, surf->geometryId(), var[0] * m_uncfactor, var[1] * m_uncfactor, std::nullopt});
 
   if (Verbosity() > 2)
   {
@@ -888,7 +892,7 @@ std::vector<const SpacePoint*> PHActsSiliconSeeding::getSiliconSpacePoints(Acts:
       {
         const auto cluskey = clusIter->first;
         totNumSiliconHits++;
-        if (_iteration_map != nullptr && m_nIteration > 0)
+        if (_iteration_map && m_nIteration > 0)
         {
           if (_iteration_map->getIteration(cluskey) < m_nIteration)
           {
@@ -990,7 +994,7 @@ void PHActsSiliconSeeding::configureSeeder()
   m_seedFinderCfg.toleranceParam = m_tolerance;
   m_seedFinderCfg.maxPtScattering = m_maxPtScattering;
   m_seedFinderCfg.sigmaError = m_sigmaError;
-  m_seedFinderCfg.helixCut = m_helixcut;
+  m_seedFinderCfg.helixCutTolerance = m_helixcut;
 
   m_seedFinderCfg =
       m_seedFinderCfg.toInternalUnits().calculateDerivedQuantities();
@@ -1277,7 +1281,7 @@ void PHActsSiliconSeeding::printSeedConfigs(Acts::SeedFilterConfig& sfconfig)
             << std::endl
             << "sigmaError = " << m_seedFinderCfg.sigmaError
             << std::endl
-            << "helixcut = " << m_seedFinderCfg.helixcut
+            << "helixcut = " << m_seedFinderCfg.helixCutTolerance
             << std::endl;
 
   std::cout << " --------------- SeedFinderOptions ------------------ " << std::endl;

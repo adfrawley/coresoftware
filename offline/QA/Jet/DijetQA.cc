@@ -16,12 +16,15 @@
 
 #include <phool/PHCompositeNode.h>
 
+#include <TStyle.h>
+
 //____________________________________________________________________________..
 DijetQA::DijetQA(const std::string& name, const std::string& recojetname)
   : SubsysReco(name)
   , m_moduleName(name)
   , m_etaRange(-1.1, 1.1)
-  , m_ptRange(1, 100)
+  , m_ptLeadRange(1, 100)
+  , m_ptSubRange(1, 100)
   , m_nJet(-1)
   , m_nJetPair(-1)
   /*, m_centrality(-1)*/
@@ -63,10 +66,12 @@ int DijetQA::Init(PHCompositeNode* /*topNode*/)
   //  std::cout << "DijetQA::Init(PHCompositeNode *topNode) Initializing" << std::endl;
   delete m_analyzer;  // make cppcheck happy
   m_analyzer = new TriggerAnalyzer();
+
+  gStyle->SetOptTitle(0);
   m_manager = QAHistManagerDef::getHistoManager();  // get the histogram anager
 
 	if(!m_manager){
-		std::cerr<<PHWHERE <<": PANIC: couldn't grab histogram manager!" <<std::endl;
+		std::cout<<PHWHERE <<": PANIC: couldn't grab histogram manager!" <<std::endl;
 		assert(m_manager);
 	}
 	std::string smallModuleName = m_moduleName; //make sure name is lowercase
@@ -140,8 +145,16 @@ int DijetQA::process_event(PHCompositeNode* topNode)
   GlobalVertexMap* vtxmap = findNode::getClass<GlobalVertexMap>(topNode, "GlobalVertexMap");
   if (!vtxmap || vtxmap->empty())
   {
-    if( Verbosity() > 1 ){
-	 std::cout << "No vertex map found, assuming the vertex has z=0" << std::endl;
+    if (!vtxmap)
+    {
+      std::cout << "DijetQA::process_event - Error can not find vtxmap node " << "GlobalVertexMap" << std::endl;
+    }
+    if(Verbosity() > 1)
+    {
+      if (vtxmap->empty())
+      {
+        std::cout << "No vertex map found, assuming the vertex has z=0" << std::endl;
+      }
     }
     m_zvtx = 0;
   }
@@ -153,16 +166,16 @@ int DijetQA::process_event(PHCompositeNode* topNode)
   JetContainer* jets = findNode::getClass<JetContainer>(topNode, m_recoJetName);
   if (!jets)
   {
+    std::cout << "DijetQA::process_event - Error can not find jets node " << m_recoJetName << std::endl;	  
     if (Verbosity() > 1)
     {
-      std::cerr << "No Jet container found" << std::endl;
+      std::cout << "No Jet container found" << std::endl;
     }
     return Fun4AllReturnCodes::EVENT_OK;
   }
-  else
-  {
-    FindPairs(jets);
-  }
+  
+      FindPairs(jets);
+ 
   return Fun4AllReturnCodes::EVENT_OK;
 }
 //____________________________________________________________________________..
@@ -174,18 +187,21 @@ void DijetQA::FindPairs(JetContainer* jets)
     std::cout << "JetKinematicCheck::process_event(PHCompositeNode *topNode) Processing Event" << std::endl;
   }
   Jet* jet_leading = nullptr;
-  float pt_leading = 0, pt1 = 0, pt2 = 0;
+  float pt_leading = 0;
+  float pt1 = 0;
+  float pt2 = 0;
   m_nJet = jets->size();
   if( Verbosity() > 2 ){
 	std::cout << "number of jets is" << m_nJet << std::endl;
   }
   std::vector<std::pair<Jet*, Jet*> > jet_pairs;
   bool set_leading = false;
-  for (auto j1 : *jets)
+  for (auto *j1 : *jets)
   {
     // assert(j1);
-    Jet *jet_pair1 = nullptr, *jet_pair2 = nullptr;
-    if (j1->get_pt() < m_ptRange.first || std::abs(j1->get_eta()) > 1.1 || j1->get_pt() > m_ptRange.second)
+    Jet *jet_pair1 = nullptr;
+    Jet *jet_pair2 = nullptr;
+    if (j1->get_pt() < m_ptLeadRange.first || j1->get_eta() < m_etaRange.first || j1->get_pt() > m_ptLeadRange.second || j1->get_eta() > m_etaRange.second)
     {
       continue;  // cut on 1 GeV jets
     }
@@ -195,13 +211,13 @@ void DijetQA::FindPairs(JetContainer* jets)
       pt_leading = j1->get_pt();
       jet_leading = j1;
     }
-    for (auto j2 : (*jets))
+    for (auto *j2 : (*jets))
     {
       if (j2 < j1)
       {
         continue;
       }
-      if (/*j2 == j1 ||*/ j2->get_pt() < 1 || std::abs(j2->get_eta()) > 1.1 || j2->get_pt() > m_ptRange.second)
+      if (/*j2 == j1 ||*/ j2->get_pt() < m_ptSubRange.first || j2->get_eta() < m_etaRange.first || j2->get_pt() > m_ptSubRange.second || j2->get_eta() > m_etaRange.second)
       {
         continue;
       }
@@ -250,12 +266,14 @@ void DijetQA::FindPairs(JetContainer* jets)
 	std::cout << "Finished search for pairs" << std::endl;
   }
   m_nJetPair = jet_pairs.size();
-  float Ajj = 0., xj = 0.;
-  if (jet_pairs.size() > 0)
+  float Ajj = 0.;
+  float xj = 0.;
+  if (!jet_pairs.empty())
   {
     for (auto js : jet_pairs)
     {
-      Jet *jet_pair1 = js.first, *jet_pair2 = js.second;
+      Jet *jet_pair1 = js.first;
+      Jet *jet_pair2 = js.second;
       if (!jet_pair1 || !jet_pair2)
       {
         continue;
@@ -268,7 +286,7 @@ void DijetQA::FindPairs(JetContainer* jets)
       pt2 = jet_pair2->get_pt();
       if (pt1 < pt2)
       {
-        auto j = jet_pair1;
+        auto *j = jet_pair1;
         jet_pair1 = jet_pair2;
         jet_pair2 = j;
         pt1 = jet_pair1->get_pt();
@@ -343,7 +361,7 @@ int DijetQA::End(PHCompositeNode* /*topNode*/)
   l1->SetFillStyle(0);
   l1->SetBorderSize(0);
   l1->SetTextSize(0.06f);
-  l1->AddEntry((TObject*) nullptr, boost::str(boost::format("A_{jj} dijet pairs with pt_{l} #geq %d", m_ptRange.first),"");
+  l1->AddEntry((TObject*) nullptr, boost::str(boost::format("A_{jj} dijet pairs with pt_{l} #geq %d", m_ptLeadRange.first),"");
   h_Ajj->GetListOfFunctions()->Add(l1);*/
 
   m_manager->registerHisto(h_Ajj);

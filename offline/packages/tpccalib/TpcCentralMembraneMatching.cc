@@ -990,7 +990,8 @@ int TpcCentralMembraneMatching::InitRun(PHCompositeNode* topNode)
     static constexpr float max_dr = 5.0;
     static constexpr float max_dphi = 0.05;
 
-    fout.reset(new TFile(m_histogramfilename.c_str(), "RECREATE"));
+    fout = new TFile(m_histogramfilename.c_str(), "RECREATE");
+    //fout.reset(new TFile(m_histogramfilename.c_str(), "RECREATE"));
     hxy_reco = new TH2F("hxy_reco", "reco cluster x:y", 800, -100, 100, 800, -80, 80);
     hxy_truth = new TH2F("hxy_truth", "truth cluster x:y", 800, -100, 100, 800, -80, 80);
 
@@ -1018,7 +1019,8 @@ int TpcCentralMembraneMatching::InitRun(PHCompositeNode* topNode)
     hdrphi = new TH1F("hdrphi", "r * dphi", 200, -0.05, 0.05);
     hnclus = new TH1F("hnclus", " nclusters ", 3, 0., 3.);
 
-    m_debugfile.reset(new TFile(m_debugfilename.c_str(), "RECREATE"));
+    m_debugfile = new TFile(m_debugfilename.c_str(), "RECREATE");
+    //m_debugfile.reset(new TFile(m_debugfilename.c_str(), "RECREATE"));
     match_tree = new TTree("match_tree", "Match TTree");
 
     match_tree->Branch("event", &m_event_index);
@@ -1031,6 +1033,8 @@ int TpcCentralMembraneMatching::InitRun(PHCompositeNode* topNode)
     match_tree->Branch("recoZ", &m_recoZ);
     match_tree->Branch("rawR", &m_rawR);
     match_tree->Branch("rawPhi", &m_rawPhi);
+    match_tree->Branch("staticR", &m_staticR);
+    match_tree->Branch("staticPhi", &m_staticPhi);
     match_tree->Branch("side", &m_side);
     match_tree->Branch("adc", &m_adc);
     match_tree->Branch("nhits", &m_nhits);
@@ -1259,6 +1263,7 @@ return ret;
 int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
 {
   std::vector<TVector3> reco_pos;
+  std::vector<TVector3> static_pos;
   std::vector<TVector3> raw_pos;
   std::vector<bool> reco_side;
   std::vector<unsigned int> reco_nhits;
@@ -1291,6 +1296,16 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
     m_event_index = eventHeader->get_EvtSequence();
   }
 
+  if (!m_corrected_CMcluster_map || m_corrected_CMcluster_map->size() < 100)
+  {
+    if(!m_useHeader)
+    {
+      m_event_index++;
+    }
+    return Fun4AllReturnCodes::EVENT_OK;
+  }
+  
+  
   if (Verbosity())
   {
     std::cout << PHWHERE << "   working on event " << m_event_index << std::endl;
@@ -1302,15 +1317,6 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
     for (const auto& h : harray)
     {
       h->Reset();
-    }
-
-    if (!m_corrected_CMcluster_map || m_corrected_CMcluster_map->size() < 100)
-    {
-      if(!m_useHeader)
-      {
-	m_event_index++;
-      }
-      return Fun4AllReturnCodes::EVENT_OK;
     }
   }
 
@@ -1341,7 +1347,10 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
     nClus_gtMin++;
 
     // Do the static + average distortion corrections if the container was found
-    Acts::Vector3 pos(cmclus->getX(), cmclus->getY(), cmclus->getZ());
+    //since incorrect z values are in cluster do to wrong t0 of laser flash, fixing based on the side for now
+    //Acts::Vector3 pos(cmclus->getX(), cmclus->getY(), cmclus->getZ());
+    Acts::Vector3 pos(cmclus->getX(), cmclus->getY(), (side ? 1.0 : -1.0));
+    TVector3 tmp_raw(pos[0], pos[1], pos[2]);
     if (m_dcc_in_module_edge)
     {
       pos = m_distortionCorrection.get_corrected_position(pos, m_dcc_in_module_edge);
@@ -1350,17 +1359,19 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
     {
       pos = m_distortionCorrection.get_corrected_position(pos, m_dcc_in_static);
     }
+    TVector3 tmp_static(pos[0], pos[1], pos[2]);
+
     if (m_dcc_in_average)
     {
       pos = m_distortionCorrection.get_corrected_position(pos, m_dcc_in_average);
     }
-
     TVector3 tmp_pos(pos[0], pos[1], pos[2]);
-    TVector3 tmp_raw(cmclus->getX(), cmclus->getY(), cmclus->getZ());
+
 
     // if(nclus == 1 && isRGap) continue;
 
     reco_pos.push_back(tmp_pos);
+    static_pos.push_back(tmp_static);
     raw_pos.push_back(tmp_raw);
     reco_side.push_back(side);
     reco_nhits.push_back(nhits);
@@ -1387,10 +1398,12 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
     if (Verbosity())
     {
       double raw_rad = sqrt(cmclus->getX() * cmclus->getX() + cmclus->getY() * cmclus->getY());
+      double static_rad = sqrt(tmp_static.X() * tmp_static.X() + tmp_static.Y() * tmp_static.Y());
       double corr_rad = sqrt(tmp_pos.X() * tmp_pos.X() + tmp_pos.Y() * tmp_pos.Y());
       std::cout << "cluster " << clusterIndex << std::endl;
       clusterIndex++;
       std::cout << "found raw cluster " << cmkey << " side " << side << " with x " << cmclus->getX() << " y " << cmclus->getY() << " z " << cmclus->getZ() << " radius " << raw_rad << std::endl;
+      std::cout << "        --- static corrected positions: " << tmp_static.X() << "  " << tmp_static.Y() << "  " << tmp_static.Z() << " radius " << static_rad << std::endl;
       std::cout << "                --- corrected positions: " << tmp_pos.X() << "  " << tmp_pos.Y() << "  " << tmp_pos.Z() << " radius " << corr_rad << std::endl;
     }
 
@@ -1831,6 +1844,8 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
       m_recoZ = reco_pos[i].Z();
       m_rawR = raw_pos[i].Perp();
       m_rawPhi = raw_pos[i].Phi();
+      m_staticR = static_pos[i].Perp();
+      m_staticPhi = static_pos[i].Phi();
       m_side = reco_side[i];
       m_adc = reco_adc[i];
       m_nhits = reco_nhits[i];
@@ -1913,10 +1928,20 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
     cmdiff->setTruthR(m_truth_pos[i].Perp());
     cmdiff->setTruthZ(m_truth_pos[i].Z());
 
-    cmdiff->setRecoPhi(reco_pos[reco_index].Phi());
-    cmdiff->setRecoR(reco_pos[reco_index].Perp());
-    cmdiff->setRecoZ(reco_pos[reco_index].Z());
-    cmdiff->setNclusters(reco_nhits[reco_index]);
+    if (m_averageMode)
+    {
+      cmdiff->setRecoPhi(static_pos[reco_index].Phi());
+      cmdiff->setRecoR(static_pos[reco_index].Perp());
+      cmdiff->setRecoZ(static_pos[reco_index].Z());
+      cmdiff->setNclusters(reco_nhits[reco_index]);
+    }
+    else
+    {
+      cmdiff->setRecoPhi(reco_pos[reco_index].Phi());
+      cmdiff->setRecoR(reco_pos[reco_index].Perp());
+      cmdiff->setRecoZ(reco_pos[reco_index].Z());
+      cmdiff->setNclusters(reco_nhits[reco_index]);
+    }
 
     if (Verbosity() > 1)
     {
@@ -1933,15 +1958,25 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
       clus_phi += 2 * M_PI;
     }
 
-    const double clus_z = reco_pos[reco_index].z();
-    const bool side = (clus_z < 0) ? false : true;
+    //const double clus_z = reco_pos[reco_index].z();
+    const bool side = reco_side[reco_index];
+    //const bool side = (clus_z < 0) ? false : true;
     // if(side != reco_side[reco_index]) std::cout << "sides do not match!" << std::endl;
 
     // calculate residuals (cluster - truth)
-    const double dr = reco_pos[reco_index].Perp() - m_truth_pos[i].Perp();
-    const double dphi = delta_phi(reco_pos[reco_index].Phi() - m_truth_pos[i].Phi());
-    const double rdphi = reco_pos[reco_index].Perp() * dphi;
-    const double dz = reco_pos[reco_index].z() - m_truth_pos[i].z();
+    double dr = reco_pos[reco_index].Perp() - m_truth_pos[i].Perp();
+    double dphi = delta_phi(reco_pos[reco_index].Phi() - m_truth_pos[i].Phi());
+    double rdphi = reco_pos[reco_index].Perp() * dphi;
+    if (m_averageMode)
+    {
+      dr = static_pos[reco_index].Perp() - m_truth_pos[i].Perp();
+      dphi = delta_phi(static_pos[reco_index].Phi() - m_truth_pos[i].Phi());
+      rdphi = static_pos[reco_index].Perp() * dphi;
+    }
+    //currently, we cannot get any z distortion since we don't know when the laser actually flashed
+    //so the distortion is set to 0 for now
+    //const double dz = reco_pos[reco_index].z() - m_truth_pos[i].z();
+    const double dz = 0.0;
 
     // fill distortion correction histograms
     /*
@@ -2023,6 +2058,7 @@ int TpcCentralMembraneMatching::End(PHCompositeNode* /*topNode*/)
       {
         if (h)
         {
+          std::cout << "writing in " << m_outputfile << "   histogram " << h->GetName() << std::endl;
           h->Write();
         }
       }
@@ -2056,16 +2092,26 @@ int TpcCentralMembraneMatching::End(PHCompositeNode* /*topNode*/)
   {
     m_debugfile->cd();
 
+    std::cout << "writing in " << m_debugfilename << "   match tree " << std::endl;
+
+    /*
     match_tree->Write();
     // match_ntup->Write();
+    std::cout << "writing in " << m_debugfilename << "   truth_r_phi " << std::endl;
     truth_r_phi[0]->Write();
     truth_r_phi[1]->Write();
+    std::cout << "writing in " << m_debugfilename << "   reco_r_phi " << std::endl;
     reco_r_phi[0]->Write();
     reco_r_phi[1]->Write();
+    std::cout << "writing in " << m_debugfilename << "   m_matchResiduals " << std::endl;
     m_matchResiduals[0]->Write();
     m_matchResiduals[1]->Write();
-
+    */
+    m_debugfile->Write();
+    std::cout << "closing " << m_debugfilename << std::endl;
     m_debugfile->Close();
+    std::cout << m_debugfilename << " has been closed" << std::endl;
+
   }
 
   return Fun4AllReturnCodes::EVENT_OK;
@@ -2195,6 +2241,9 @@ int TpcCentralMembraneMatching::GetNodes(PHCompositeNode* topNode)
 
     std::cout << "TpcCentralMembraneMatching::GetNodes - creating TpcDistortionCorrectionContainer in node " << dcc_out_node_name << std::endl;
     m_dcc_out = new TpcDistortionCorrectionContainer;
+    m_dcc_out->m_dimensions = 2;
+    m_dcc_out->m_phi_hist_in_radians = false;
+    m_dcc_out->m_interpolate_z = true;
     auto node = new PHDataNode<TpcDistortionCorrectionContainer>(m_dcc_out, dcc_out_node_name);
     runNode->addNode(node);
   }

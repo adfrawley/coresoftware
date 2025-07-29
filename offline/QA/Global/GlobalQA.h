@@ -63,17 +63,6 @@ class GlobalQA : public SubsysReco
   TH1 *h_GlobalQA_mbd_zvtxq{nullptr};
 
   // sEPD
-  std::string m_sEPDMapName;
-  std::string m_sEPDfieldname;
-  bool m_overrideSEPDMapName{false};
-  bool m_overrideSEPDFieldName{false};
-  std::string m_sEPDADCName;
-  std::string m_sEPDADCfieldname;
-  bool m_overrideSEPDADCName{false};
-  bool m_overrideSEPDADCFieldName{false};
-  CDBTTree *cdbttree2{nullptr};
-  unsigned int key{999};
-  std::vector<unsigned int> v;
   TH1 *h_GlobalQA_sEPD_tile[744] = {nullptr};
   TH1 *h_GlobalQA_sEPD_adcsum_s{nullptr};
   TH1 *h_GlobalQA_sEPD_adcsum_n{nullptr};
@@ -99,6 +88,13 @@ class GlobalQA : public SubsysReco
   std::string detector;
   std::string m_outputFileName;
   std::string OutputFileName;
+
+  // MBD trigger bit definitions (matching online monitoring)
+  static constexpr uint64_t mbdns = (0x1UL << 10) | (0x1UL << 11);  // MBD NS2 and NS1
+  static constexpr uint64_t mbdnsvtx10 = (0x1UL << 12) | (0x1UL << 15);  // MBD NS2/NS1 with vtx < 10cm
+  static constexpr uint64_t mbdnsvtx30 = (0x1UL << 13);  // MBD NS2 with vtx < 30cm
+  static constexpr uint64_t mbdnsvtx150 = (0x1UL << 14);  // MBD NS2 with vtx < 150cm
+  static constexpr uint64_t mbdtrig = mbdns | mbdnsvtx10 | mbdnsvtx30 | mbdnsvtx150;  // Combined MBD triggers
 };
 
 #endif

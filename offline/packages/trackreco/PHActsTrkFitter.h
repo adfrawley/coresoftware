@@ -22,6 +22,7 @@
 #include <Acts/EventData/VectorMultiTrajectory.hpp>
 #include <Acts/Utilities/BinnedArray.hpp>
 #include <Acts/Utilities/Logger.hpp>
+#include <Acts/Utilities/Helpers.hpp>
 
 #include <ActsExamples/EventData/Trajectories.hpp>
 
@@ -77,6 +78,12 @@ class PHActsTrkFitter : public SubsysReco
     m_fitSiliconMMs = fitSiliconMMs;
   }
 
+  /// with direct navigation, force a fit with only silicon hits
+  void forceSiOnlyFit(bool forceSiOnlyFit)
+  {
+    m_forceSiOnlyFit = forceSiOnlyFit;
+  }
+
   /// require micromegas in SiliconMM fits
   void setUseMicromegas(bool value)
   {
@@ -114,9 +121,20 @@ class PHActsTrkFitter : public SubsysReco
   void commissioning(bool com) { m_commissioning = com; }
 
   void useOutlierFinder(bool outlier) { m_useOutlierFinder = outlier; }
+  void setOutlierFinderOutfile(const std::string& outfilename)
+  {
+    m_outlierFinder.outfileName(outfilename);
+  }
 
   void SetIteration(int iter) { _n_iteration = iter; }
   void set_track_map_name(const std::string& map_name) { _track_map_name = map_name; }
+  void set_svtx_seed_map_name(const std::string& map_name) { _svtx_seed_map_name = map_name; }
+  void set_trajctories_name(const std::string& map_name) {m_trajectories_name = map_name; }
+
+  void set_svtx_alignment_state_map_name(const std::string& map_name) { 
+      _svtx_alignment_state_map_name = map_name; 
+      m_alignStates.alignmentStateMap(map_name);
+  }
 
   /// Set flag for pp running
   void set_pp_mode(bool ispp) { m_pp_mode = ispp; }
@@ -125,7 +143,8 @@ class PHActsTrkFitter : public SubsysReco
   void set_use_clustermover(bool use) { m_use_clustermover = use; }
   void ignoreLayer(int layer) { m_ignoreLayer.insert(layer); }
   void setTrkrClusterContainerName(std::string &name){ m_clusterContainerName = name; }
-
+  void setDirectNavigation(bool flag) { m_directNavigation = flag; }
+    
  private:
   /// Get all the nodes
   int getNodes(PHCompositeNode* topNode);
@@ -194,6 +213,8 @@ class PHActsTrkFitter : public SubsysReco
   /// Acts::DirectedNavigator with a list of sorted silicon+MM surfaces
   bool m_fitSiliconMMs = false;
 
+  bool m_forceSiOnlyFit = false;
+
   /// requires micromegas present when fitting silicon-MM surfaces
   bool m_useMicromegas = true;
 
@@ -210,6 +231,8 @@ class PHActsTrkFitter : public SubsysReco
   /// Flag for pp running
   bool m_pp_mode = false;
 
+  bool m_directNavigation = true;
+  
   // do we have a constant field
   bool m_ConstField{false};
   double fieldstrength{std::numeric_limits<double>::quiet_NaN()};
@@ -231,6 +254,7 @@ class PHActsTrkFitter : public SubsysReco
 
   //! acts trajectories
   std::map<const unsigned int, Trajectory>* m_trajectories = nullptr;
+  std::string m_trajectories_name = "ActsTrajectories";
 
   //! tracks
 //  SvtxTrackMap* m_seedTracks = nullptr;
@@ -247,6 +271,8 @@ class PHActsTrkFitter : public SubsysReco
 
   int _n_iteration = 0;
   std::string _track_map_name = "SvtxTrackMap";
+  std::string _svtx_seed_map_name = "SvtxTrackSeedContainer";
+  std::string _svtx_alignment_state_map_name =  "SvtxAlignmentStateMap";
 
   /// Default particle assumption to pion
   unsigned int m_pHypothesis = 211;
@@ -267,6 +293,22 @@ class PHActsTrkFitter : public SubsysReco
   TH1* h_updateTime = nullptr;
   TH1* h_stateTime = nullptr;
   TH1* h_rotTime = nullptr;
+
+  std::vector<const Acts::Surface*> m_materialSurfaces = {};
+
+  struct MaterialSurfaceSelector {
+    std::vector<const Acts::Surface*> surfaces = {};
+  
+    /// @param surface is the test surface
+    void operator()(const Acts::Surface* surface) {
+      if (surface->surfaceMaterial() != nullptr) {
+        if (std::find(surfaces.begin(), surfaces.end(), surface) ==
+            surfaces.end()) {
+          surfaces.push_back(surface);
+        }
+      }
+    }
+  };
 };
 
 #endif

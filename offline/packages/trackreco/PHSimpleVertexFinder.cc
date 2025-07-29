@@ -48,6 +48,11 @@ PHSimpleVertexFinder::PHSimpleVertexFinder(const std::string &name)
 //____________________________________________________________________________..
 int PHSimpleVertexFinder::InitRun(PHCompositeNode *topNode)
 {
+  if (Verbosity() > 0)
+  {
+    std::cout << __PRETTY_FUNCTION__ << " is pp mode? " << _pp_mode << std::endl;
+  }
+
   int ret = GetNodes(topNode);
   if (ret != Fun4AllReturnCodes::EVENT_OK)
   {
@@ -71,10 +76,9 @@ int PHSimpleVertexFinder::process_event(PHCompositeNode * /*topNode*/)
 
   _active_dcacut = _base_dcacut;
 
-  if (_vertex_track_map.size() > 0)
-  {
-    _svtx_vertex_map->clear();
-  }
+  // in case these objects are in the input file, we clear the nodes and replace them
+    _svtx_vertex_map->Reset();
+    _track_vertex_crossing_map->Reset();
 
   // Write to a new map on the node tree that contains (crossing, trackid) pairs for all tracks
   // Later, will add to it a map  containing (crossing, vertexid)
@@ -83,7 +87,6 @@ int PHSimpleVertexFinder::process_event(PHCompositeNode * /*topNode*/)
   for (const auto &[trackkey, track] : *_track_map)
   {
     auto crossing = track->get_crossing();
-    auto siseed = track->get_silicon_seed();
 
     if (Verbosity() > 0)
       {
@@ -93,10 +96,14 @@ int PHSimpleVertexFinder::process_event(PHCompositeNode * /*topNode*/)
 
     // crossing zero contains unmatched TPC tracks
     // Here we skip those crossing = zero tracks that do not have silicon seeds
-    if( (crossing == 0) & !siseed)
+    if (_pp_mode)
+    {
+      auto siseed = track->get_silicon_seed();
+      if (crossing == 0 && !siseed)
       {
-	continue;
+      continue;
       }
+    }
     
     crossings.insert(crossing);
     _track_vertex_crossing_map->addTrackAssoc(crossing, trackkey);    

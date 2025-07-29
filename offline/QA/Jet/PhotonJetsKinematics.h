@@ -69,6 +69,12 @@ class PhotonJetsKinematics : public SubsysReco
     m_histtag = tag;
   }
 
+  /// turn on/off optional histograms
+  void SetDoOptHist(const bool opt)
+  {
+    m_doOptHist = opt;
+  }
+
  private:
   // std::string outfilename;
   // TFile *outfile;
@@ -81,6 +87,7 @@ class PhotonJetsKinematics : public SubsysReco
  std::string m_histtag;
  uint32_t m_trgToSelect;
  bool m_doTrgSelect;
+ bool m_doOptHist;
 
  ///Output histograms
  TH1 *h_emcal_cluster_chi2 {nullptr};
@@ -88,6 +95,15 @@ class PhotonJetsKinematics : public SubsysReco
  TH2 *h_emcal_cluster_eta_phi {nullptr};
  TH1 *h_emcal_cluster_eta {nullptr};    // <-- Declare eta histogram
  TH1 *h_emcal_cluster_phi {nullptr};    // <-- Declare phi histogram
+ TH2 *h_emcal_cluster_energy_eta {nullptr};
+ TH2 *h_emcal_cluster_chi2_eta {nullptr};
+ TH1 *h_emcal_cluster_eta_with_cuts{nullptr};
+ TH1 *h_emcal_cluster_phi_with_cuts{nullptr};
+ TH2 *h_emcal_cluster_eta_phi_with_cuts{nullptr};
+ TH2 *h_emcal_cluster_energy_phi {nullptr};
+ TH2 *h_emcal_cluster_chi2_phi {nullptr};
+ TH1 *h_emcal_cluster_eta_with_energy_cut{nullptr};
+ TH2 *h_emcal_cluster_chi2_energy{nullptr};
 };
 
 #endif // PHOTONJETSKINEMATICS_H

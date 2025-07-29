@@ -71,7 +71,6 @@ pkginclude_HEADERS =  \
   PHFlag.h \
   PHIODataNode.h \
   PHIOManager.h \
-  PHLog.h \
   PHNode.h \
   PHNodeIOManager.h \
   PHNodeIntegrate.h \
@@ -89,6 +88,7 @@ pkginclude_HEADERS =  \
   PHTimeStamp.h \
   PHTypedNodeIterator.h \
   recoConsts.h \
+  RunnumberRange.h \
   sphenix_constants.h
 
 noinst_PROGRAMS = \

@@ -109,16 +109,17 @@ namespace
   /* see: https://git.racf.bnl.gov/gitea/Instrumentation/sampa_data/src/branch/fmtv2/README.md */
   enum ModeBitType
   {
-    BX_COUNTER_SYNC_T = 0,
-    ELINK_HEARTBEAT_T = 1,
-    SAMPA_EVENT_TRIGGER_T = 2,
-    CLEAR_LV1_LAST_T = 6,
-    CLEAR_LV1_ENDAT_T = 7
+    BX_COUNTER_SYNC_T = 0b001,
+    ELINK_HEARTBEAT_T = 0b010
   };
 }  // namespace
 
 // this is the clock multiplier from lvl1 to fee clock
-double MicromegasBcoMatchingInformation_v2::m_multiplier = 4.262916255;
+bool MicromegasBcoMatchingInformation_v2::m_multiplier_is_set = false;
+double MicromegasBcoMatchingInformation_v2::m_multiplier = 0;
+
+// true if on-fly multiplier adjustment is enabled
+bool MicromegasBcoMatchingInformation_v2::m_multiplier_adjustment_enabled = true;
 
 // muliplier adjustment count
 /* controls how often the gtm multiplier is automatically adjusted */
@@ -174,7 +175,7 @@ void MicromegasBcoMatchingInformation_v2::print_gtm_bco_information() const
 }
 
 //___________________________________________________
-void MicromegasBcoMatchingInformation_v2::save_gtm_bco_information(const MicromegasBcoMatchingInformation_v2::gtm_payload& payload)
+void MicromegasBcoMatchingInformation_v2::save_gtm_bco_information(int /*packet_id*/, const MicromegasBcoMatchingInformation_v2::gtm_payload& payload)
 {
   if ( payload.is_lvl1)
   {
@@ -196,7 +197,7 @@ void MicromegasBcoMatchingInformation_v2::save_gtm_bco_information(const Microme
 
     // also save hearbeats BCO
     const auto& modebits = payload.modebits;
-    if (modebits & (1U << ELINK_HEARTBEAT_T))
+    if (modebits == ELINK_HEARTBEAT_T)
     {
       const auto& gtm_bco = payload.bco;
       m_gtm_bco_list.push_back(gtm_bco);
@@ -211,7 +212,7 @@ bool MicromegasBcoMatchingInformation_v2::find_reference_from_modebits(const Mic
   {
     // get modebits
     const auto& modebits = payload.modebits;
-    if (modebits & (1U << BX_COUNTER_SYNC_T))
+    if (modebits == BX_COUNTER_SYNC_T)
     {
       std::cout << "MicromegasBcoMatchingInformation_v2::find_reference_from_modebits"
         << " found reference from modebits"
@@ -322,13 +323,14 @@ bool MicromegasBcoMatchingInformation_v2::find_reference_from_data(const fee_pay
 }
 
 //___________________________________________________
-std::optional<uint64_t> MicromegasBcoMatchingInformation_v2::find_gtm_bco(uint32_t fee_bco)
+std::optional<uint64_t> MicromegasBcoMatchingInformation_v2::find_gtm_bco(int packet_id, unsigned int fee_id, uint32_t fee_bco)
 {
   // make sure the bco matching is properly initialized
   if (!is_verified())
   {
     return std::nullopt;
   }
+
   // find matching gtm bco in map
   const auto bco_matching_iter = std::find_if(
       m_bco_matching_list.begin(),
@@ -359,6 +361,8 @@ std::optional<uint64_t> MicromegasBcoMatchingInformation_v2::find_gtm_bco(uint32
         const auto fee_bco_diff = get_bco_diff(fee_bco_predicted, fee_bco);
 
         std::cout << "MicromegasBcoMatchingInformation_v2::find_gtm_bco -"
+                  << " packet_id: " << packet_id
+                  << " fee_id: " << fee_id
                   << std::hex
                   << " fee_bco: 0x" << fee_bco
                   << " predicted: 0x" << fee_bco_predicted
@@ -375,7 +379,8 @@ std::optional<uint64_t> MicromegasBcoMatchingInformation_v2::find_gtm_bco(uint32
       m_gtm_bco_list.erase(iter);
 
       // update clock adjustment
-      update_multiplier_adjustment(gtm_bco, fee_bco);
+      if( m_multiplier_adjustment_enabled )
+      { update_multiplier_adjustment(gtm_bco, fee_bco); }
 
       return gtm_bco;
     }
@@ -395,6 +400,8 @@ std::optional<uint64_t> MicromegasBcoMatchingInformation_v2::find_gtm_bco(uint32
           const int fee_bco_diff = (iter2 != m_gtm_bco_list.end()) ? get_bco_diff(get_predicted_fee_bco(*iter2).value(), fee_bco) : -1;
 
           std::cout << "MicromegasBcoMatchingInformation_v2::find_gtm_bco -"
+                    << " packet_id: " << packet_id
+                    << " fee_id: " << fee_id
                     << std::hex
                     << " fee_bco: 0x" << fee_bco
                     << std::dec

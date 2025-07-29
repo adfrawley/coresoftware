@@ -69,6 +69,7 @@ class TrkrNtuplizer : public SubsysReco
   void do_cluster_eval(bool b) { _do_cluster_eval = b; }
   void do_clus_trk_eval(bool b) { _do_clus_trk_eval = b; }
   void do_track_eval(bool b) { _do_track_eval = b; }
+  void do_dedx_calib(bool b) { _do_dedx_calib = b; }
   void do_tpcseed_eval(bool b) { _do_tpcseed_eval = b; }
   void do_siseed_eval(bool b) { _do_siseed_eval = b; }
   void set_first_event(int value) { _ievent = value; }
@@ -79,7 +80,7 @@ class TrkrNtuplizer : public SubsysReco
   SvtxTrack *best_track_from(TrkrDefs::cluskey cluster_key);
   std::set<SvtxTrack *> all_tracks_from(TrkrDefs::cluskey cluster_key);
   void create_cache_track_from_cluster();
-  std::vector<TrkrDefs::cluskey> get_track_ckeys(SvtxTrack *track);
+  static std::vector<TrkrDefs::cluskey> get_track_ckeys(SvtxTrack *track);
   void segment(const int seg) { m_segment = seg; }
   void runnumber(const int run) { m_runnumber = run; }
   void job(const int job) { m_job = job; }
@@ -95,9 +96,16 @@ class TrkrNtuplizer : public SubsysReco
   // eval stack
 
   float calc_dedx(TrackSeed *tpcseed);
+  TF1 *f_pion_plus{nullptr};
+  TF1 *f_kaon_plus{nullptr};
+  TF1 *f_proton_plus{nullptr};
+  TF1 *f_pion_minus{nullptr};
+  TF1 *f_kaon_minus{nullptr};
+  TF1 *f_proton_minus{nullptr};
+  float  dedxcorr[2][12][3]{};
   float get_n1pix(TrackSeed *tpcseed);
 
-  TMatrixF calculateClusterError(TrkrCluster *c, float &clusphi);
+  static TMatrixF calculateClusterError(TrkrCluster *c, float &clusphi);
   void get_dca(SvtxTrack *track, SvtxVertexMap *vertexmap,
                float &dca3dxy, float &dca3dz,
                float &dca3dxysigma, float &dca3dzsigma);
@@ -114,6 +122,7 @@ class TrkrNtuplizer : public SubsysReco
   bool _do_cluster_eval{true};
   bool _do_clus_trk_eval{true};
   bool _do_track_eval{true};
+  bool _do_dedx_calib{false};
   bool _do_tpcseed_eval{false};
   bool _do_siseed_eval{false};
 

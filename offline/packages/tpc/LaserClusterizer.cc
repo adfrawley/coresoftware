@@ -151,7 +151,7 @@ namespace
       PHG4TpcCylinderGeom *layergeom = my_data.geom_container->GetLayerCellGeom((int) coords[0]);
       
       double r = layergeom->get_radius();
-      double phi = layergeom->get_phi(coords[1]);
+      double phi = layergeom->get_phi(coords[1], side);
       double t = layergeom->get_zcenter(fabs(coords[2]));
       
       double hitzdriftlength = t * my_data.tGeometry->get_drift_velocity();
@@ -486,7 +486,7 @@ int LaserClusterizer::process_event(PHCompositeNode *topNode)
     return Fun4AllReturnCodes::ABORTRUN;
   }
 
-  if(!m_laserEventInfo->isLaserEvent())
+  if(!m_laserEventInfo->isLaserEvent() && !m_laserEventInfo->isGl1LaserEvent() && !m_laserEventInfo->isGl1LaserPileupEvent())
   {
     return Fun4AllReturnCodes::EVENT_OK;
   }

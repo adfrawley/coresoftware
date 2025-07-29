@@ -23,10 +23,28 @@ TDatabasePDG* PDGdb;
 // std::vector<HepMC::GenParticle*> parseStarlightOutput(const std::string& filename)
 int fillEvent(HepMC::GenEvent* evt, std::ifstream& file)
 {
+  std::string line;
   std::string label;
 
-  if (file >> label)
+  int found_event = 0;
+  while ( getline( file, line ) )
   {
+    // keep going until EVENT line is found
+    if ( line.starts_with("EVENT") )
+    {
+      found_event = 1;
+      break;
+    }
+  }
+
+  if ( found_event == 1 )
+  {
+    int nevt, ntrk, nvtx;
+
+    std::stringstream evtline( line );
+
+    evtline >> label >> nevt >> ntrk >> nvtx;
+
     // first line should be the event
     // EVENT: n ntracks nvertices ,
     if (label != "EVENT:")
@@ -35,11 +53,18 @@ int fillEvent(HepMC::GenEvent* evt, std::ifstream& file)
       return -1;
     }
 
-    int nevt, ntrk, nvtx;
-    file >> nevt >> ntrk >> nvtx;
-    if (nevt % 100 == 0)
+    static int nprint = 100;
+    if (nevt % nprint == 0)
     {
       std::cout << nevt << std::endl;
+      if ( nevt>10000 )
+      {
+        nprint = 10000;
+      }
+      else if ( nevt>1000 )
+      {
+        nprint = 1000;
+      }
     }
 
     evt->set_event_number(nevt);
@@ -99,7 +124,7 @@ int main(int argc, char* argv[])
 {
   if (argc != 3)
   {
-    std::cerr << "Usage: " << argv[0] << " <HepMC_output_file>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << "<starlight_file> <HepMC_output_file>" << std::endl;
     return 1;
   }
 
